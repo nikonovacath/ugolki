@@ -5,147 +5,182 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Уголки</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=PT+Sans:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Sawarabi+Gothic&display=swap">
 <style>
-/* Layout: wooden board on the left, a narrow "table edge" panel with dice, hint and players on the right; stacks on phones */
+/* Layout: header row, then the framed board on the left and a 392px column of cards on the right; stacks on phones */
 :root{
-  --table:#e3e7de; --panel:#f6f7f2; --ink:#1f2521; --muted:#5d6a61; --line:#c9d0c5;
-  --sq-light:#e8d3ad; --sq-dark:#a8774b; --frame:#4b3021; --frame-ink:#e8d3ad;
-  --veil:rgba(227,231,222,.62); --accent:#d99a1e; --accent-ink:#1f2521;
-  --die:#fbf8f1; --pip:#23201d; --danger:#b8402e;
-  --f-display:"Russo One","Arial Black",system-ui,sans-serif;
-  --f-body:"PT Sans","Trebuchet MS",system-ui,sans-serif;
+  --bg:#f5eed9; --card:#fcf9f1; --line:#d5cfbe; --ink:#000; --text:#575757; --muted:#9c9c9c;
+  --frame:#e8c78a; --frame-ink:#865931; --sq-light:#e8d3ad; --sq-dark:#a8774b; --sq-ink:#3f2c09; --veil:rgba(245,238,217,.6); --ring:#d99a1e; --yellow:#ffca57; --hint:#efece5; --disabled:#ccc4b1; --six:#4c8810; --danger:#c0392b;
+  --f-head:"Sawarabi Gothic","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --f-lbl:Helvetica,Arial,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --table:#121915; --panel:#1b231e; --ink:#e6ebe3; --muted:#97a39a; --line:#2e3a33;
-  --sq-light:#cdb58c; --sq-dark:#8a603b; --frame:#2c1c12; --frame-ink:#cdb58c;
-  --veil:rgba(18,25,21,.55); --accent:#f0b43a; --accent-ink:#121915;
-  --die:#f1ece2; --pip:#23201d; --danger:#e0705c; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --table:#121915; --panel:#1b231e; --ink:#e6ebe3; --muted:#97a39a; --line:#2e3a33;
-  --sq-light:#cdb58c; --sq-dark:#8a603b; --frame:#2c1c12; --frame-ink:#cdb58c;
-  --veil:rgba(18,25,21,.55); --accent:#f0b43a; --accent-ink:#121915;
-  --die:#f1ece2; --pip:#23201d; --danger:#e0705c; color-scheme:dark}
-
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 [hidden]{display:none!important}
-body{margin:0}
-body{background:var(--table);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
-.wrap{max-width:1020px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-h1{font-family:var(--f-display);font-weight:400;font-size:2rem;margin:0;letter-spacing:.02em}
-header p{margin:0;color:var(--muted)}
-.game{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-mono);font-weight:500;font-size:14px;line-height:1.43;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
+.wrap{max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;letter-spacing:-.03em;margin:0}
+.sub{margin:2px 0 0;font-size:12px;line-height:19px;color:var(--text);text-transform:uppercase}
+.game{display:flex;gap:15px;align-items:flex-start;justify-content:center}
 
 /* board */
-.board-box{flex:1 1 420px;min-width:0;max-width:600px}
-.frame{background:var(--frame);border-radius:10px;padding:22px;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.18)}
-.board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));aspect-ratio:1;max-width:100%;border:2px solid #2a1a10}
-.lbl{position:absolute;font:12px var(--f-body);color:var(--frame-ink);opacity:.8;display:flex;justify-content:space-around}
-.lbl.files{left:22px;right:22px;bottom:3px}
-.lbl.ranks{top:22px;bottom:22px;left:6px;flex-direction:column}
-.sq{position:relative;min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.sq.l{background:var(--sq-light)} .sq.d{background:var(--sq-dark)}
-.sq.inner::after{content:"";position:absolute;inset:0;background:var(--veil)}
+.board-box{flex:1 1 533px;min-width:0;max-width:533px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.frame{width:100%;background:var(--frame);border-radius:16px;display:grid;grid-template-columns:14.33px minmax(0,1fr) 14.33px;grid-template-rows:14.33px auto 14.33px}
+.lbl{display:flex;font:700 8.6px var(--f-lbl);color:var(--frame-ink);text-transform:uppercase}
+.lbl span{flex:1;display:flex;align-items:center;justify-content:center}
+.lbl.files{grid-column:2}
+.lbl.ranks{flex-direction:column}
+.board{grid-column:2;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));aspect-ratio:1;
+  border:1.43px solid var(--frame-ink);border-radius:10px;overflow:hidden}
+.sq{position:relative;min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;--mark:#fcf9f1}
+.sq.l{background-color:var(--sq-light);--mark:var(--sq-ink)}
+.sq.inner{background-image:linear-gradient(var(--veil),var(--veil))} .sq.d{background-color:var(--sq-dark)}
 .sq.home::before{content:"";position:absolute;inset:12%;border-radius:6px;background:color-mix(in srgb,var(--tint) 60%,transparent);border:2px dashed rgba(0,0,0,.45);z-index:1}
 .sq.start::before{inset:6%;border-style:solid;border-width:3px}
-.sq .cname{position:absolute;left:3px;top:1px;font-size:10px;color:rgba(0,0,0,.45);z-index:1;pointer-events:none}
-.sq.dest::after{content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:var(--accent);opacity:.75;z-index:3}
-.sq.dest{cursor:pointer}
-.sq.dest:hover::after,.sq.dest:focus-visible::after{width:70%;height:70%;opacity:.45;border:3px solid var(--accent)}
-.sq.dest:focus-visible{outline:none}
-.pc.sel{outline:4px solid var(--accent);outline-offset:2px;animation:none;transform:translateY(-3px)}
-.tray{display:flex;gap:10px 22px;flex-wrap:wrap;margin-top:12px}
-.tray-row{display:flex;align-items:center;gap:6px;min-height:34px}
-.tray-row .nm{font-size:.85rem;color:var(--muted);margin-right:2px}
-.tray .pc{width:28px;height:28px;border-width:3px;flex:none}
-.tray .empty{font-size:.85rem;color:var(--muted)}
-.sq.place-hint::before{content:"";position:absolute;inset:6%;border-radius:6px;border:3px dashed var(--accent);z-index:1}
+.sq.place-hint::before{content:"";position:absolute;inset:6%;border-radius:8px;border:2px dashed var(--mark);z-index:1}
 .sq.can-place{cursor:pointer}
-.sq.can-place::before{border:4px solid var(--accent);animation:glow 1.1s infinite}
+.sq.can-place::before{border:3px solid var(--yellow);animation:glow 1.1s infinite}
 @keyframes glow{50%{border-color:transparent}}
-.pc{width:72%;aspect-ratio:1;border-radius:50%;background:var(--fill);border:3px solid var(--edge);position:relative;z-index:2;
-  box-shadow:0 2px 0 rgba(0,0,0,.35), inset 0 -4px 0 rgba(0,0,0,.15);transition:transform .12s}
+.sq.dest{cursor:pointer}
+.sq.dest::after{content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:var(--yellow);border:1px solid #000;z-index:3;
+  transition:width .22s cubic-bezier(.2,.8,.3,1),height .22s cubic-bezier(.2,.8,.3,1),background-color .22s ease,border-width .22s ease}
+.sq.dest:hover::after,.sq.dest:focus-visible::after{width:74%;height:74%;background:color-mix(in srgb,var(--yellow) 45%,transparent);border-width:2px}
+.sq.dest:focus-visible{outline:none}
+.pc{width:72%;aspect-ratio:1;border-radius:50%;background:var(--fill);border:3px solid var(--edge);position:relative;z-index:2;flex:none;
+  box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15);transition:transform .12s}
 .pc::after{content:"";position:absolute;inset:22%;border-radius:50%;border:2px solid var(--edge);opacity:.45}
-.sq.pair .pc{width:48%;margin:0 -6%}
-.pc.can{cursor:pointer;outline:3px solid var(--accent);outline-offset:2px;animation:pulse 1.1s infinite}
+.sq.pair .pc{width:50%;margin:0 -6%}
+.pc.can{cursor:pointer;outline:3px solid var(--ring);outline-offset:2px;animation:pulse 1.1s infinite}
 .pc.can:hover{transform:translateY(-3px)}
-.pc.cur{outline:2px dashed var(--accent);outline-offset:2px}
+.pc.sel{outline:4px solid var(--ring);outline-offset:2px;animation:none;transform:translateY(-3px)}
 @keyframes pulse{50%{outline-color:transparent}}
+/* reserves under the board: yours on the left (big, clickable), everyone else on the right (mini) */
+.tray{width:100%;display:flex;justify-content:space-between;align-items:center;gap:16px 24px;flex-wrap:wrap;min-height:48px}
+.tray:empty{display:none}
+.tray-mine{display:flex;align-items:center;gap:12px}
+.tray-lab{font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase}
+.slots{display:flex;gap:12px;align-items:center}
+.tray .pc{width:44px}
+.slot{width:44px;aspect-ratio:1;border-radius:50%;border:1.5px dashed rgba(0,0,0,.28);flex:none}
+.tray-others{display:flex;flex-direction:column;gap:6px}
+.orow{display:flex;align-items:center;gap:8px}
+.orow .nm{width:10ch;text-align:right;font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orow .slots{gap:4px}
+.mini{width:18px;height:18px;border-radius:50%;background:var(--fill);border:2px solid var(--edge);box-shadow:0 1px 0 rgba(0,0,0,.3);flex:none}
+.mini.out{background:transparent;border:1.5px dashed rgba(0,0,0,.28);box-shadow:none}
+/* when yours and the opponents' reserves don't fit side by side under the board, stack them:
+   smaller own pieces, labels in one shared column so every row starts at the same line */
+.board-box{container-type:inline-size}
+@container (max-width:460px){
+  /* one grid: the label column is as wide as the longest name in this game (up to 10 letters) */
+  .tray{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center;justify-content:start}
+  .tray-mine,.tray-others,.orow{display:contents}
+  .tray-lab,.orow .nm{width:auto;max-width:10ch;text-align:left}
+  .tray-mine .slots{gap:8px}.tray .pc,.tray .slot{width:32px}.tray .pc{border-width:2.5px}}
 
-/* side panel */
-.side{flex:1 1 300px;min-width:0;max-width:420px;display:flex;flex-direction:column;gap:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
-.turn{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-size:1.25rem}
-.disc{width:22px;height:22px;border-radius:50%;background:var(--fill);border:3px solid var(--edge);flex:none}
-.dice-row{display:flex;align-items:center;gap:16px;margin-top:14px;flex-wrap:wrap}
-.die{width:72px;height:72px;border-radius:14px;background:var(--die);box-shadow:0 3px 0 #b9b1a3, inset 0 0 0 1px #cfc7b8;
-  display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:10px;flex:none}
-.die i{width:13px;height:13px;border-radius:50%;background:var(--pip);place-self:center;visibility:hidden}
+/* side column */
+.side{flex:0 1 392px;min-width:300px;max-width:392px;display:flex;flex-direction:column;gap:12px}
+.card{border:1px solid var(--line);border-radius:16px;padding:16px 25px;display:flex;flex-direction:column;gap:16px}
+.card.main{background:var(--card);padding:24px 25px;gap:24px}
+.card.turn-card{background:var(--card);border:2px solid #000;padding:20px 25px;gap:24px}
+/* someone else's turn: the card calms down, the black frame is only for you */
+.card.turn-card.calm{border:1px solid #b1b1b1;padding:21px 26px}
+.card-title{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;letter-spacing:-.03em;margin:0}
+.card-sub{font-family:var(--f-head);font-weight:400;font-size:18px;line-height:24px;letter-spacing:-.03em;margin:0}
+.rule{height:1px;background:var(--line);border:0;margin:0}
+.rows{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;align-items:center;gap:20px}
+.row .lab{width:76px;flex:none;color:var(--text);text-transform:uppercase;line-height:20px}
+.seg{display:flex;gap:10px;flex-wrap:nowrap}
+/* when the card is too narrow for label + buttons in one line, every row puts its label on top, all at once */
+.card.main{container-type:inline-size}
+@container (max-width:334px){.row{flex-direction:column;align-items:stretch;gap:8px}.row .lab{width:auto}.row .seg{align-self:flex-start}}
+button{font:inherit;cursor:pointer;color:#000;background:transparent;border:1px solid #000;border-radius:12px;padding:8px 18px;line-height:24px;text-transform:uppercase;transition:background-color .12s,color .12s}
+button[aria-pressed="true"]{background:#000;color:#fff}
+button:not(:disabled):hover{background:rgba(0,0,0,.06)}
+button[aria-pressed="true"]:hover{background:#2b2b2b}
+.btn-main:not(:disabled):hover{background:#ffbd2e}
+button:not(:disabled):active{transform:translateY(1px)}
+input[type="text"]:hover{background:rgba(0,0,0,.03)}
+details.card summary:hover .chev{opacity:.6}
+.linkbtn:hover{opacity:1;background:transparent}
+.tray .pc.can:hover,.pc.can:hover{transform:translateY(-3px)}
+.sq.can-place:hover::before{background:color-mix(in srgb,var(--yellow) 35%,transparent)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.btn-main{background:var(--yellow);width:100%;padding:8px 42px}
+.btn-main:disabled{background:var(--disabled);opacity:.4;cursor:default}
+input[type="text"]{font:inherit;text-transform:uppercase;color:#000;background:transparent;border:1px solid #000;border-radius:12px;padding:8px 18px;line-height:24px;width:100%;min-width:0;transition:background-color .12s}
+input[type="text"]::placeholder{color:rgba(0,0,0,.37)}
+.note{font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase;text-align:center;margin:0}
+.err{font-size:12px;line-height:18px;color:var(--danger);text-transform:uppercase;margin:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+.turn{display:flex;align-items:center;gap:11px;font-family:var(--f-head);font-size:20px;line-height:24px;letter-spacing:-.03em}
+.ico{width:var(--s,20px);height:var(--s,20px);border-radius:50%;background:var(--fill);border:3px solid var(--edge);flex:none;box-shadow:0 1px 0 rgba(0,0,0,.3)}
+.dice-row{display:flex;gap:12px;align-items:center}
+.die{width:66px;height:66px;flex:none;border:1px solid #000;border-radius:16px;background:#fff;box-shadow:inset 0 -5px 0 rgba(0,0,0,.16);
+  display:grid;grid-template:repeat(3,11px)/repeat(3,11px);gap:6px;place-content:center;padding-bottom:4px}
+.die i{width:11px;height:11px;border-radius:50%;background:#000;visibility:hidden}
 .die i.on{visibility:visible}
-.die.six i.on{background:var(--danger)}
+.die.six{border-color:var(--six)} .die.six i{background:var(--six)}
 .die.rolling{animation:shake .5s}
 @keyframes shake{20%{transform:rotate(-14deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(5deg)}}
-button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:10px 14px}
-button:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-family:var(--f-display);font-size:1.05rem;padding:14px 18px}
-button:disabled{opacity:.45;cursor:default}
-.hint{margin-top:14px;padding:12px;border-radius:8px;background:color-mix(in srgb,var(--accent) 16%,transparent);min-height:3em}
-.hint b{font-weight:700}
-.hint .act{margin-top:10px}
-.players{display:flex;flex-direction:column;gap:10px}
-.prow{display:flex;align-items:center;gap:10px}
-.prow .nm{font-weight:700}
-.prow .st{color:var(--muted);font-size:.9rem;font-variant-numeric:tabular-nums}
-.prow .place{margin-left:auto;font-family:var(--f-display);font-size:.95rem}
-.prow.active .nm{text-decoration:underline 2px var(--accent);text-underline-offset:4px}
-.log{font-size:.9rem;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto;margin:0;padding:0;list-style:none}
-.log li:first-child{color:var(--ink)}
-h2{font-family:var(--f-display);font-weight:400;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.dice-row .btn-main{height:66px;flex:1;min-width:0;padding-inline:12px}
+.hint{background:var(--hint);border-radius:10px;padding:12px;font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase}
+.hint b{color:#000;font-weight:500}
+.dice-stack{display:flex;flex-direction:column;gap:13px}
 
-/* setup */
-.setup{display:flex;flex-direction:column;gap:14px}
-.modes{display:flex;gap:8px;flex-wrap:wrap}
-.modes button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
-.srow{display:flex;align-items:center;gap:10px}
-.srow .lab{width:7.5em;color:var(--muted)}
-.modes button{min-width:44px}
-select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
-details summary{cursor:pointer;font-weight:700}
-details ul{padding-left:18px;margin:8px 0 0;display:flex;flex-direction:column;gap:4px}
-.results ol{margin:8px 0 12px;padding-left:22px;font-size:1.1rem}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-.field{display:flex;flex-direction:column;gap:6px}
-.field label{color:var(--muted);font-size:.9rem}
-input[type="text"]{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--table);color:var(--ink);width:100%;min-width:0}
-input[type="text"]:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
-.err{color:var(--danger);font-size:.95rem;margin:0}
-.big{font-family:var(--f-display);font-size:1.6rem}
+.players{display:flex;flex-direction:column;gap:12px}
+.prow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;text-transform:uppercase;color:var(--text)}
+.prow .nm{min-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow.active .nm{color:#000;text-decoration:underline 1.5px var(--yellow);text-underline-offset:3px}
+.prow .st{flex:1;text-align:right;color:var(--muted);white-space:nowrap}
+.prow .place{color:#000}
+.prow .free{color:var(--muted)}
+
+details.card{gap:0}
+details.card summary{list-style:none;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:var(--f-head);font-size:18px;line-height:24px;letter-spacing:-.03em}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary .chev{width:24px;height:24px;background:url(assets/chevron.svg) center/contain no-repeat;transition:transform .15s}
+details.card[open] summary .chev{transform:scaleY(-1)}
+details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.goal{margin:0 0 12px;color:var(--text);text-transform:uppercase;line-height:20px}
+.rules{margin:0;padding-left:21px;gap:8px;color:var(--text);text-transform:uppercase;line-height:20px;display:flex;flex-direction:column}
+.log{margin:0;padding:0;list-style:none;font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+.log li:first-child{color:#000}
+.results ol{margin:0;padding-left:22px;font-family:var(--f-head);font-size:18px;line-height:28px}
+.big{font-family:var(--f-head);font-size:32px;line-height:36px}
 .invite{display:flex;gap:8px;flex-wrap:wrap}
-.invite input{flex:1 1 200px}
-.muted{color:var(--muted);margin:0}
-.prow .free{color:var(--muted);font-style:italic}
+.invite input{flex:1 1 180px;text-transform:none;font-size:12px}
+.linkbtn{border:0;padding:9px;opacity:.62;font-size:12px}
+/* side by side down to 680px (the board shrinks first); below that the column drops under the board and both stretch full width */
+@media (max-width:680px){.game{flex-direction:column;align-items:stretch}.board-box,.side{max-width:none;min-width:0;flex:none;width:100%}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-
 <div class="wrap">
-  <header><h1>Уголки</h1><p>Дедушкина игра на шахматной доске: круг по краю и домой в свой угол.</p></header>
+  <header>
+    <div><h1>Уголки</h1><p class="sub">Дедушкина игра на шахматной доске</p></div>
+    <button class="linkbtn" id="topNew" hidden>Новая игра</button>
+  </header>
   <div class="game">
     <div class="board-box">
       <div class="frame">
-        <div class="board" id="board"></div>
-        <div class="lbl files"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div>
+        <span></span><div class="lbl files"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div><span></span>
         <div class="lbl ranks"><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+        <div class="board" id="board"></div>
+        <div class="lbl ranks"><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+        <span></span><div class="lbl files"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div><span></span>
       </div>
-      <div class="tray" id="tray" aria-label="Фигуры вне поля"></div>
+      <div class="tray" id="tray" aria-label="Твои фишки вне поля"></div>
     </div>
     <div class="side" id="side"></div>
   </div>
 </div>
-
 <script>
 const FILES='abcdefgh';
 const CORNERS=['a1','a8','h8','h1'];
@@ -165,10 +200,10 @@ const key=c=>c[0]+','+c[1];
 const cname=c=>FILES[c[0]]+(c[1]+1);
 
 const COLORS=[
-  {name:'белые',fill:'#f3efe6',edge:'#3b2f25'},
-  {name:'чёрные',fill:'#2a2522',edge:'#d6ccbb'},
-  {name:'красные',fill:'#c6412f',edge:'#5a1a10'},
-  {name:'синие',fill:'#2f62b5',edge:'#0f2753'},
+  {name:'белые',fill:'#f3efe6',edge:'#3b2f25',tint:'#fff'},
+  {name:'чёрные',fill:'#2a2522',edge:'#d6ccbb',tint:'#2a2522'},
+  {name:'красные',fill:'#c6412f',edge:'#5a1a10',tint:'#c6412f'},
+  {name:'синие',fill:'#2f62b5',edge:'#0f2753',tint:'#2f62b5'},
 ];
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -327,7 +362,7 @@ function makeState(list){
   return g;
 }
 function newLocalGame(name,bots){
-  const list=[{name:name||'Вы',bot:false}];
+  const list=[{name:name||'Ты',bot:false}];
   for(let i=1;i<=bots;i++)list.push({name:bots>1?`Бот ${i}`:'Бот',bot:true});
   NET=null;G=makeState(list);screen='game';SEL=null;
   render();maybeBot();
@@ -339,7 +374,7 @@ function nextTurn(){
   G.again=false;
 }
 function capture(list){
-  list.forEach(o=>{G.players[o.j].pieces[o.n]=-1;addLog(`${who(cur())} рубит фигуру: ${who(G.players[o.j])}.`);});
+  list.forEach(o=>{G.players[o.j].pieces[o.n]=-1;addLog(`${who(cur())} рубит фишку: ${who(G.players[o.j])}.`);});
 }
 async function doRoll(forced){
   if(!G||G.phase!=='roll')return;
@@ -353,7 +388,7 @@ async function doRoll(forced){
     if(!G.options.length){
       if(r===6){G.note=`Выпало 6, но ходить некем. ${nm} бросает ещё раз.`;addLog(`${nm}: 6, ходов нет, бросок ещё раз.`);}
       else{const P=cur();const none=!P.pieces.some(p=>p>=0&&p<28);
-        G.note=none&&P.pieces.includes(-1)?`Выпало ${r}. Чтобы выставить фигуру, нужна шестёрка. Ход переходит дальше.`:`Выпало ${r}, ходить некем. Ход переходит дальше.`;
+        G.note=none&&P.pieces.includes(-1)?`Выпало ${r}. Чтобы выставить фишку, нужна шестёрка. Ход переходит дальше.`:`Выпало ${r}, ходить некем. Ход переходит дальше.`;
         addLog(`${nm}: ${r}, ходов нет.`);}
       sync();await wait(1400);
       if(r===6)G.again=true;else nextTurn();
@@ -371,12 +406,12 @@ async function apply(opt){
     if(opt.type==='place'){
       if(P.corner==null){P.corner=opt.corner;addLog(`${nm} выбирает угол ${CORNERS[opt.corner]}.`);}
       capture(opt.cap);P.pieces[opt.n]=0;
-      addLog(`${nm}: новая фигура на ${CORNERS[P.corner]}.`);sync();
+      addLog(`${nm}: новая фишка на ${CORNERS[P.corner]}.`);sync();
     }else{
       for(let s=opt.from+1;s<=opt.to;s++){P.pieces[opt.n]=s;sync();await wait(reduced?0:130);}
       capture(opt.cap);
       const dest=cname(cellAt(P.corner,opt.to));
-      addLog(opt.to>=28&&opt.from<28?`${nm}: фигура дома на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
+      addLog(opt.to>=28&&opt.from<28?`${nm}: фишка дома на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
     }
     if(finished(P)){
       G.places.push(G.turn);
@@ -420,12 +455,12 @@ function dieHTML(v){return `<div class="die${v===6?' six':''}" id="die" aria-lab
 async function animateDie(final){
   const d=document.getElementById('die');
   if(!d||reduced)return;
-  d.classList.add('rolling');
+  d.classList.remove('six');d.classList.add('rolling');
   for(let k=0;k<8;k++){const v=1+Math.floor(Math.random()*6);d.querySelectorAll('i').forEach((p,i)=>p.classList.toggle('on',PIPS[v].includes(i)));await wait(60);}
 }
 
 /* ---------- render ---------- */
-const boardEl=document.getElementById('board'),sideEl=document.getElementById('side'),trayEl=document.getElementById('tray');
+const boardEl=document.getElementById('board'),sideEl=document.getElementById('side'),trayEl=document.getElementById('tray'),topNew=document.getElementById('topNew');
 const cells={};
 for(let y=7;y>=0;y--)for(let x=0;x<8;x++){
   const el=document.createElement('div');
@@ -433,24 +468,27 @@ for(let y=7;y>=0;y--)for(let x=0;x<8;x++){
   el.dataset.k=x+','+y;
   boardEl.appendChild(el);cells[x+','+y]=el;
 }
-const tint=col=>col.fill==='#f3efe6'?'#fff':col.fill;
-const disc=c=>`<span class="disc" style="--fill:${c.fill};--edge:${c.edge}"></span>`;
+const ico=(c,s)=>`<span class="ico" style="--fill:${c.fill};--edge:${c.edge};--s:${s||20}px"></span>`;
 function pieceEl(col){const pc=document.createElement('div');pc.className='pc';pc.style.setProperty('--fill',col.fill);pc.style.setProperty('--edge',col.edge);return pc;}
 function makeButton(el,label){el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label',label);}
-function render(){renderBoard();renderTray();renderSide();}
+function render(){renderBoard();renderTray();renderSide();topNew.hidden=screen==='home';}
+// before a game starts the board shows each colour's way home, like the opening picture in the design
+const SHOWCASE=[[2,[[0,7],[1,6],[2,5],[3,4]]],[1,[[7,7],[6,6],[5,5],[4,4]]],[0,[[0,0],[1,1],[2,2],[3,3]]],[3,[[7,0],[6,1],[5,2],[4,3]]]];
 function renderBoard(){
   Object.values(cells).forEach(el=>{
     el.classList.remove('home','start','dest','can-place','place-hint','pair');
     el.style.removeProperty('--tint');
     ['data-opt','tabindex','role','aria-label'].forEach(a=>el.removeAttribute(a));el.innerHTML='';
   });
-  CORNER_XY.forEach((c,i)=>cells[key(c)].insertAdjacentHTML('beforeend',`<span class="cname">${CORNERS[i]}</span>`));
-  if(!G)return;
+  if(!G){
+    SHOWCASE.forEach(([color,list])=>list.forEach(c=>cells[key(c)].appendChild(pieceEl(COLORS[color]))));
+    return;
+  }
   G.players.forEach(P=>{
     if(P.corner==null)return;
     const col=COLORS[P.color];
-    const st=cells[key(CORNER_XY[P.corner])];st.classList.add('start','home');st.style.setProperty('--tint',tint(col));
-    diag(P.corner).forEach(c=>{const el=cells[key(c)];el.classList.add('home');el.style.setProperty('--tint',tint(col));});
+    const st=cells[key(CORNER_XY[P.corner])];st.classList.add('start','home');st.style.setProperty('--tint',col.tint);
+    diag(P.corner).forEach(c=>{const el=cells[key(c)];el.classList.add('home');el.style.setProperty('--tint',col.tint);});
   });
   const at={};
   G.players.forEach((P,j)=>P.pieces.forEach((pos,n)=>{if(pos<0)return;const k=key(cellAt(P.corner,pos));(at[k]=at[k]||[]).push({j,n});}));
@@ -460,7 +498,7 @@ function renderBoard(){
     list.forEach(({j,n})=>{
       const pc=pieceEl(COLORS[G.players[j].color]);
       if(human&&j===G.turn&&G.options.some(o=>o.type==='move'&&o.n===n)){
-        pc.classList.add('can');pc.dataset.n=n;makeButton(pc,'Выбрать фигуру');
+        pc.classList.add('can');pc.dataset.n=n;makeButton(pc,'Выбрать фишку');
         if(SEL&&SEL.kind==='piece'&&SEL.n===n)pc.classList.add('sel');
       }
       el.appendChild(pc);
@@ -471,56 +509,78 @@ function renderBoard(){
   if(human&&SEL)G.options.forEach((o,i)=>{
     const P=cur();
     if(SEL.kind==='reserve'&&o.type==='place'){
-      const el=cells[key(CORNER_XY[o.corner])];el.classList.add('can-place');el.dataset.opt=i;makeButton(el,`Поставить фигуру на ${CORNERS[o.corner]}`);
+      const el=cells[key(CORNER_XY[o.corner])];el.classList.add('can-place');el.dataset.opt=i;makeButton(el,`Поставить фишку на ${CORNERS[o.corner]}`);
     }
     if(SEL.kind==='piece'&&o.type==='move'&&o.n===SEL.n){
       const c=cellAt(P.corner,o.to),el=cells[key(c)];el.classList.add('dest');el.dataset.opt=i;makeButton(el,`Пойти на ${cname(c)}`);
     }
   });
 }
+const mySeat=()=>NET?NET.seat:Math.max(0,G.players.findIndex(p=>!p.bot));
 function renderTray(){
   trayEl.innerHTML='';
   if(!G)return;
-  const canPlace=isMine()&&G.phase==='choose'&&G.options.some(o=>o.type==='place');
-  G.players.forEach((P,j)=>{
-    const col=COLORS[P.color],row=document.createElement('div');row.className='tray-row';
-    row.innerHTML=`<span class="nm">${esc(who(P))}</span>`;
-    const res=P.pieces.filter(p=>p<0).length;
-    if(!res)row.insertAdjacentHTML('beforeend','<span class="empty">все в игре</span>');
-    for(let i=0;i<res;i++){
-      const pc=pieceEl(col);
-      if(j===G.turn&&canPlace&&i===0){pc.classList.add('can');pc.dataset.res='1';makeButton(pc,'Взять фигуру из запаса');
-        if(SEL&&SEL.kind==='reserve')pc.classList.add('sel');}
-      row.appendChild(pc);
-    }
-    trayEl.appendChild(row);
+  const me=mySeat();
+  // your reserve: each piece keeps its own slot, so taking one leaves a dashed gap instead of shuffling the rest
+  const P=G.players[me],col=COLORS[P.color];
+  const canPlace=isMine()&&G.turn===me&&G.phase==='choose'&&G.options.some(o=>o.type==='place');
+  const mine=document.createElement('div');mine.className='tray-mine';
+  mine.innerHTML='<span class="tray-lab">Ты</span>';
+  const slots=document.createElement('div');slots.className='slots';
+  P.pieces.forEach((pos,n)=>{
+    if(pos>=0){const sl=document.createElement('span');sl.className='slot';slots.appendChild(sl);return;}
+    const pc=pieceEl(col);
+    if(canPlace){pc.classList.add('can');pc.dataset.res=n;makeButton(pc,'Взять фишку из запаса');
+      if(SEL&&SEL.kind==='reserve'&&SEL.n===n)pc.classList.add('sel');}
+    slots.appendChild(pc);
   });
+  mine.appendChild(slots);trayEl.appendChild(mine);
+  // everyone else, in turn order: four mini slots each, bright while the piece is still in reserve
+  const others=G.players.map((Q,i)=>({Q,i})).filter(x=>x.i!==me);
+  if(!others.length)return;
+  trayEl.insertAdjacentHTML('beforeend',`<div class="tray-others">${others.map(({Q})=>{
+    const c=COLORS[Q.color],r=Q.pieces.filter(p=>p<0).length,nm=esc(who(Q));
+    return `<div class="orow" aria-label="${nm}: в запасе ${r}"><span class="nm" title="${nm}">${nm}</span><span class="slots">${
+      [0,1,2,3].map(k=>`<span class="mini${k<r?'':' out'}" style="--fill:${c.fill};--edge:${c.edge}"></span>`).join('')}</span></div>`;}).join('')}</div>`);
 }
 function hintText(){
   const P=cur(),nm=esc(who(P));
   if(G.note)return esc(G.note);
   if(!isMine()){
-    if(P.bot)return G.phase==='choose'?`${nm} выбирает ход…`:`${nm} думает…`;
-    return G.phase==='choose'?`Выпало <b>${G.roll}</b>. ${nm} выбирает ход…`:`Ходит ${nm}…`;
+    return G.phase==='choose'?`Выпало <b>${G.roll}</b>. ${nm} делает ход`:`${nm} делает ход`;
   }
   if(G.phase==='roll'||G.phase==='busy'){
-    if(G.again)return `Выпала шестёрка: <b>бросайте ещё раз</b>.`;
-    if(P.corner==null)return `Бросайте кубик. На шестёрке выставите первую фигуру на любой свободный угол, он станет вашим.`;
-    return P.pieces.some(p=>p>=0)?`Бросайте кубик.`:`Бросайте кубик. Чтобы выставить фигуру на ${CORNERS[P.corner]}, нужна шестёрка.`;
+    if(G.again)return `Выпала шестёрка: <b>бросай ещё раз</b>.`;
+    if(P.corner==null)return `Бросай кубик. На шестёрке выставишь первую фишку на любой свободный угол, он станет твоим.`;
+    return P.pieces.some(p=>p>=0)?`Бросай кубик.`:`Бросай кубик. Чтобы выставить фишку на ${CORNERS[P.corner]}, нужна шестёрка.`;
   }
   if(G.phase==='choose'){
     const pl=G.options.some(o=>o.type==='place'),mv=G.options.some(o=>o.type==='move');
     let t=`Выпало <b>${G.roll}</b>. `;
-    if(SEL&&SEL.kind==='reserve')t+=P.corner==null?`Выберите угол. Он станет вашим до конца игры.`:`Нажмите на свой угол ${CORNERS[P.corner]}.`;
-    else if(SEL)t+=`Выберите клетку.`;
-    else if(pl&&mv)t+=`Сделайте ход или выставьте фигуру из запаса под доской.`;
-    else if(pl)t+=P.corner==null?`Выставьте фигуру из запаса под доской на любой свободный угол.`:`Выставьте фигуру из запаса под доской.`;
-    else t+=`Сделайте ход.`;
+    if(SEL&&SEL.kind==='reserve')t+=P.corner==null?`Выбери угол. Он станет твоим до конца игры.`:`Нажми на свой угол ${CORNERS[P.corner]}.`;
+    else if(SEL)t+=`Выбери клетку.`;
+    else if(pl&&mv)t+=`Сделай ход или выставь фишку из запаса под доской.`;
+    else if(pl)t+=P.corner==null?`Выставь фишку из запаса под доской на любой свободный угол.`:`Выставь фишку из запаса под доской.`;
+    else t+=`Сделай ход.`;
     if(!SEL&&G.options.some(o=>o.cap.length))t+=` Есть ход со срубом!`;
     if(G.roll===6)t+=` Потом бросок ещё раз.`;
     return t;
   }
   return '';
+}
+let openLog=false,openRules=false;
+const RULES_LIST=`<p class="goal">Цель — первым завести все 4 фишки в свой уголок.</p>
+<ol class="rules">
+  <li>Выпала 6 — ставишь фишку на угол и бросаешь ещё раз. Первый угол выбираешь сам, он твой до конца игры.</li>
+  <li>Фишки идут по краю доски по часовой стрелке.</li>
+  <li>Пройдя круг, фишка сворачивает в уголок по диагонали: от a1 это b2, c3, d4. Заходить только точным броском.</li>
+  <li>Перепрыгивать фишки нельзя. Встал ровно на чужую — срубил, она уходит в запас.</li>
+  <li>Ходить нечем — ход переходит дальше.</li>
+</ol>`;
+const rulesCard=()=>`<details class="card" id="rulesBox"${openRules?' open':''}><summary>Правила<span class="chev" aria-hidden="true"></span></summary>${RULES_LIST}</details>`;
+function bindDetails(){
+  const r=document.getElementById('rulesBox');if(r)r.addEventListener('toggle',()=>{openRules=r.open;});
+  const l=document.getElementById('logBox');if(l)l.addEventListener('toggle',()=>{openLog=l.open;});
 }
 function renderSide(){
   if(screen==='home')return renderHome();
@@ -531,85 +591,91 @@ function renderSide(){
   const canRoll=G.phase==='roll'&&isMine();
   let top;
   if(G.phase==='over'){
-    top=`<div class="card results"><h2>Игра окончена</h2><ol>${G.places.map(i=>`<li>${esc(who(G.players[i]))}</li>`).join('')}</ol>
-      <button class="primary" id="again">Сыграть ещё</button></div>`;
+    top=`<div class="card main results"><p class="card-title">Игра окончена</p><hr class="rule"><ol>${G.places.map(i=>`<li>${esc(who(G.players[i]))}</li>`).join('')}</ol>
+      <button class="btn-main" id="again">Сыграть ещё</button></div>`;
   }else{
-    top=`<div class="card">
-      <div class="turn">${disc(col)}${NET&&G.turn===NET.seat?'Ваш ход':'Ход: '+esc(who(P))}</div>
-      <div class="dice-row">${dieHTML(G.roll)}
-        <button class="primary" id="roll" ${canRoll?'':'disabled'}>${G.again&&canRoll?'Бросить ещё раз':'Бросить кубик'}</button></div>
-      <div class="hint" aria-live="polite">${hintText()}</div>
+    const mine=NET?G.turn===NET.seat:!P.bot;
+    top=`<div class="card turn-card${mine?'':' calm'}">
+      <div class="turn">${ico(col,24)}${mine?'Твой ход':'Ход: '+esc(who(P))}</div>
+      <div class="dice-stack">
+        <div class="dice-row">${dieHTML(G.roll)}
+          <button class="btn-main" id="roll" ${canRoll?'':'disabled'}>${!mine?esc(who(P))+' бросает кубик':G.again&&canRoll?'Бросить ещё раз':'Бросить кубик'}</button></div>
+        <div class="hint" aria-live="polite">${hintText()}</div>
+      </div>
     </div>`;
   }
   sideEl.innerHTML=top+`
-    <div class="card"><h2>Игроки</h2><div class="players">${G.players.map((Q,i)=>{const c=COLORS[Q.color];
-      const res=Q.pieces.filter(p=>p<0).length,home=Q.pieces.filter(p=>p>=28).length,on=4-res-home;const pl=G.places.indexOf(i);
-      return `<div class="prow${i===G.turn&&G.phase!=='over'?' active':''}">${disc(c)}
-        <div><div class="nm">${esc(who(Q))}${NET&&i===NET.seat?' (вы)':''} · ${Q.corner==null?'угол не выбран':CORNERS[Q.corner]}</div><div class="st">запас ${res} · на поле ${on} · дома ${home}</div></div>
-        ${pl>=0&&(G.phase==='over'||pl<G.players.length-1)?`<span class="place">${pl+1} место</span>`:''}</div>`;}).join('')}</div></div>
-    <div class="card"><h2>Ходы</h2><ul class="log">${G.log.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></div>
-    <button id="restart">Новая игра</button>`;
+    <div class="card"><div class="players">${G.players.map((Q,i)=>{const c=COLORS[Q.color];
+      const home=Q.pieces.filter(p=>p>=28).length,on=Q.pieces.filter(p=>p>=0&&p<28).length;const pl=G.places.indexOf(i);
+      const done=pl>=0&&(G.phase==='over'||pl<G.players.length-1);
+      return `<div class="prow${i===G.turn&&G.phase!=='over'?' active':''}">${ico(c)}
+        <span class="nm">${esc(who(Q))}${NET&&i===NET.seat?' (ты)':''}</span>
+        <span class="st">${done?`<span class="place">${pl+1} место</span>`:`на поле ${on} · дома ${home}`}</span></div>`;}).join('')}</div></div>
+    <details class="card" id="logBox"${openLog?' open':''}><summary>Ходы<span class="chev" aria-hidden="true"></span></summary><ul class="log">${G.log.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></details>
+    ${rulesCard()}`;
+  bindDetails();
   document.getElementById('roll')?.addEventListener('click',()=>doRoll());
   document.getElementById('again')?.addEventListener('click',()=>{
     const list=G.players.map(p=>({name:p.name,bot:p.bot}));
     G=makeState(list);SEL=null;NET?sync():(render(),maybeBot());
   });
-  document.getElementById('restart').addEventListener('click',goHome);
 }
 function goHome(){clearTimeout(botTimer);leaveRoom();screen='home';render();}
+topNew.addEventListener('click',goHome);
 
 let home={mode:'bots',count:1,error:''};
-const RULES=`<details><summary>Правила</summary><ul>
-  <li>Фигура выходит на угол только на шестёрке. Первую ставишь на любой свободный угол, и он становится твоим. После шестёрки бросок ещё раз.</li>
-  <li>Ходим по краю доски по часовой стрелке, полный круг, потом по диагонали в свой уголок: для a1 это a1, b2, c3, d4.</li>
-  <li>Перепрыгивать фигуры нельзя, ни свои, ни чужие. Встать точно на чужую можно: она срублена и уходит в запас.</li>
-  <li>В уголок заходят только точным броском, перелететь дальний угол уголка нельзя.</li>
-  <li>Игра идёт, пока не определятся все места.</li>
-</ul></details>`;
 function renderHome(){
   const friends=home.mode==='friends';
-  sideEl.innerHTML=`<form class="card setup" id="homeForm">
-    <h2>Новая игра</h2>
-    <div class="modes" role="group" aria-label="Режим">
-      <button type="button" data-mode="bots" aria-pressed="${!friends}">С ботами</button>
-      <button type="button" data-mode="friends" aria-pressed="${friends}">С друзьями</button>
+  sideEl.innerHTML=`<form class="card main" id="homeForm">
+    <p class="card-title">Новая игра</p>
+    <hr class="rule">
+    <div class="rows">
+      <div class="row"><span class="lab">Играть:</span><div class="seg wide" role="group" aria-label="Режим">
+        <button type="button" data-mode="bots" aria-pressed="${!friends}">С ботами</button>
+        <button type="button" data-mode="friends" aria-pressed="${friends}">С друзьями</button></div></div>
+      <div class="row"><span class="lab">${friends?'Друзей:':'Ботов:'}</span><div class="seg">${[1,2,3].map(v=>`<button type="button" data-count="${v}" aria-pressed="${home.count===v}">${v}</button>`).join('')}</div></div>
+      ${friends?`<div class="row"><label class="lab" for="name">Твое имя:</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Введи имя"></div>`:''}
     </div>
-    <div class="field"><label for="name">Ваше имя</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Например, Катя"></div>
-    <div class="srow"><span class="lab">${friends?'Друзей':'Ботов'}</span><div class="modes">${[1,2,3].map(v=>`<button type="button" data-count="${v}" aria-pressed="${home.count===v}">${v}</button>`).join('')}</div></div>
-    ${friends?`<p class="muted">Создадим игру и дадим ссылку для друзей. Игра начнётся, когда все зайдут.</p>`:''}
-    ${home.error?`<p class="err">${esc(home.error)}</p>`:''}
-    <button class="primary" type="submit" id="start">${friends?'Создать игру':'Начать'}</button>
-    ${RULES}</form>`;
+    <div class="stack">
+      ${home.error?`<p class="err">${esc(home.error)}</p>`:''}
+      <button class="btn-main" type="submit" id="start">${friends?'Создать игру':'Начать игру'}</button>
+      ${friends?`<p class="note">Создадим игру и дадим ссылку для друзей. Игра начнётся, когда все зайдут.</p>`:''}
+    </div></form>
+    ${rulesCard()}`;
+  bindDetails();
   const nameEl=document.getElementById('name');
-  sideEl.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{home.mode=b.dataset.mode;home.error='';store.set('ugolki-name',nameEl.value.trim());render();}));
-  sideEl.querySelectorAll('[data-count]').forEach(b=>b.addEventListener('click',()=>{home.count=+b.dataset.count;store.set('ugolki-name',nameEl.value.trim());render();}));
+  const keepName=()=>{if(nameEl)store.set('ugolki-name',nameEl.value.trim());};
+  sideEl.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{keepName();home.mode=b.dataset.mode;home.error='';render();}));
+  sideEl.querySelectorAll('[data-count]').forEach(b=>b.addEventListener('click',()=>{keepName();home.count=+b.dataset.count;render();}));
   document.getElementById('homeForm').addEventListener('submit',async e=>{
-    e.preventDefault();
-    const name=nameEl.value.trim();store.set('ugolki-name',name);
-    if(!friends){home.error='';newLocalGame(name,home.count);return;}
-    if(!name){home.error='Напишите имя, чтобы друзья видели, кто играет.';render();return;}
+    e.preventDefault();keepName();
+    if(!friends){home.error='';newLocalGame('Ты',home.count);return;}
+    const name=nameEl.value.trim();
+    if(!name){home.error='Напиши имя, чтобы друзья видели, кто играет.';render();return;}
     const btn=document.getElementById('start');btn.disabled=true;btn.textContent='Создаём игру…';
     try{await createRoom(name,home.count);}catch(err){home.error=netError(err);render();}
   });
 }
 let joinInfo=null,joinError='';
 function renderJoin(){
-  if(!joinInfo){sideEl.innerHTML=`<div class="card"><p class="muted">Загружаем игру…</p></div>`;return;}
+  if(!joinInfo){sideEl.innerHTML=`<div class="card main"><p class="note">Загружаем игру…</p></div>`;return;}
   const list=Object.values(joinInfo.players||{}).sort((a,b)=>a.seat-b.seat),size=joinInfo.meta.size,full=list.length>=size||joinInfo.state;
-  sideEl.innerHTML=`<form class="card setup" id="joinForm">
-    <h2>Вас зовут в игру</h2>
+  sideEl.innerHTML=`<form class="card main" id="joinForm">
+    <p class="card-title">Тебя зовут в игру</p>
+    <hr class="rule">
     <div class="players">${[...Array(size)].map((_,i)=>{const p=list.find(x=>x.seat===i);
-      return `<div class="prow">${disc(COLORS[i])}<div class="nm">${p?esc(p.name):'<span class="free">свободно</span>'}</div></div>`;}).join('')}</div>
-    ${full?`<p class="err">Все места уже заняты.</p><button type="button" class="primary" id="toHome">Начать свою игру</button>`:`
-    <div class="field"><label for="name">Ваше имя</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Например, Катя"></div>
-    ${joinError?`<p class="err">${esc(joinError)}</p>`:''}
-    <button class="primary" type="submit" id="join">Присоединиться</button>`}
-    ${RULES}</form>`;
+      return `<div class="prow">${ico(COLORS[i])}<span class="nm">${p?esc(p.name):'<span class="free">свободно</span>'}</span></div>`;}).join('')}</div>
+    ${full?`<p class="err">Все места уже заняты.</p><button type="button" class="btn-main" id="toHome">Начать свою игру</button>`:`
+    <div class="row"><label class="lab" for="name">Твое имя:</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Введи имя"></div>
+    <div class="stack">${joinError?`<p class="err">${esc(joinError)}</p>`:''}
+    <button class="btn-main" type="submit" id="join">Присоединиться</button></div>`}
+    </form>${rulesCard()}`;
+  bindDetails();
   document.getElementById('toHome')?.addEventListener('click',goHome);
   document.getElementById('joinForm').addEventListener('submit',async e=>{
     e.preventDefault();
     const name=document.getElementById('name').value.trim();store.set('ugolki-name',name);
-    if(!name){joinError='Напишите имя, чтобы остальные видели, кто играет.';render();return;}
+    if(!name){joinError='Напиши имя, чтобы остальные видели, кто играет.';render();return;}
     const btn=document.getElementById('join');btn.disabled=true;btn.textContent='Заходим…';
     try{await joinRoom(params.get('room'),name);}
     catch(err){if(err.message==='full'){joinInfo=await roomInfo(params.get('room'));}else joinError=netError(err);render();}
@@ -617,34 +683,34 @@ function renderJoin(){
 }
 function renderLobby(){
   const list=roomPlayers(),size=NET.size,link=roomURL(NET.code);
-  sideEl.innerHTML=`<div class="card setup">
-    <h2>Ждём игроков</h2>
+  sideEl.innerHTML=`<div class="card main">
+    <p class="card-title">Ждём игроков</p>
+    <hr class="rule">
     <div class="big">${list.length} из ${size}</div>
     <div class="players">${[...Array(size)].map((_,i)=>{const p=list.find(x=>x.seat===i);
-      return `<div class="prow">${disc(COLORS[i])}<div class="nm">${p?esc(p.name)+(i===NET.seat?' (вы)':''):'<span class="free">ждём…</span>'}</div></div>`;}).join('')}</div>
-    <div class="field"><label for="invite">Ссылка-приглашение</label>
-      <div class="invite"><input type="text" id="invite" readonly value="${esc(link)}"><button id="copy">Скопировать</button>${navigator.share?'<button id="share">Отправить</button>':''}</div></div>
-    <p class="muted">Отправьте ссылку друзьям. Игра начнётся сама, когда все зайдут.</p>
-    <button id="restart">Выйти</button></div>`;
+      return `<div class="prow">${ico(COLORS[i])}<span class="nm">${p?esc(p.name)+(i===NET.seat?' (ты)':''):'<span class="free">ждём…</span>'}</span></div>`;}).join('')}</div>
+    <div class="stack">
+      <div class="invite"><input type="text" id="invite" readonly value="${esc(link)}" aria-label="Ссылка-приглашение"><button id="copy">Скопировать</button>${navigator.share?'<button id="share">Отправить</button>':''}</div>
+      <p class="note">Отправь ссылку друзьям. Игра начнётся сама, когда все зайдут.</p>
+    </div></div>`;
   const inp=document.getElementById('invite');
   document.getElementById('copy').addEventListener('click',e=>{
     const b=e.currentTarget;
-    navigator.clipboard.writeText(link).then(()=>{b.textContent='Скопировано';},()=>{inp.select();b.textContent='Выделено, скопируйте';});
+    navigator.clipboard.writeText(link).then(()=>{b.textContent='Скопировано';},()=>{inp.select();b.textContent='Выделено';});
   });
   document.getElementById('share')?.addEventListener('click',()=>navigator.share({title:'Уголки',text:'Сыграем в уголки?',url:link}).catch(()=>{}));
-  document.getElementById('restart').addEventListener('click',goHome);
 }
 let fatal='';
 function renderError(){
-  sideEl.innerHTML=`<div class="card setup"><h2>Не получилось</h2><p>${esc(fatal)}</p><button class="primary" id="toHome">На главную</button></div>`;
+  sideEl.innerHTML=`<div class="card main"><p class="card-title">Не получилось</p><hr class="rule"><p class="note" style="text-align:left">${esc(fatal)}</p><button class="btn-main" id="toHome">На главную</button></div>`;
   document.getElementById('toHome').addEventListener('click',goHome);
 }
 function netError(err){
   const c=(err&&(err.code||err.message))||'';
-  if(c==='notfound')return 'Такой игры нет. Проверьте ссылку.';
+  if(c==='notfound')return 'Такой игры нет. Проверь ссылку.';
   if(c==='full')return 'Все места уже заняты.';
   if(/auth\/(admin-restricted|operation-not-allowed|configuration-not-found)/.test(c))return 'Онлайн-режим ещё не включён в настройках сервера (анонимный вход в Firebase).';
-  if(/network|Failed to fetch|import/i.test(c))return 'Нет связи с сервером игры. Проверьте интернет и попробуйте ещё раз.';
+  if(/network|Failed to fetch|import/i.test(c))return 'Нет связи с сервером игры. Проверь интернет и попробуй ещё раз.';
   return 'Не удалось подключиться к игре. '+c;
 }
 
@@ -658,9 +724,13 @@ boardEl.addEventListener('click',e=>{
   const pc=e.target.closest('.pc.can');
   if(pc){select({kind:'piece',n:+pc.dataset.n});return;}
   const t=e.target.closest('[data-opt]');
-  if(t&&isMine())apply(G.options[+t.dataset.opt]);
+  if(!t||!isMine())return;
+  let o=G.options[+t.dataset.opt];
+  // place exactly the reserve piece that was picked
+  if(o.type==='place'&&SEL&&SEL.kind==='reserve')o=Object.assign({},o,{n:SEL.n});
+  apply(o);
 });
-trayEl.addEventListener('click',e=>{if(e.target.closest('[data-res]'))select({kind:'reserve'});});
+trayEl.addEventListener('click',e=>{const t=e.target.closest('[data-res]');if(t)select({kind:'reserve',n:+t.dataset.res});});
 document.addEventListener('keydown',e=>{
   if((e.key==='Enter'||e.key===' ')&&e.target.getAttribute('role')==='button'){e.preventDefault();e.target.click();return;}
   if(e.code==='Space'&&G&&G.phase==='roll'&&isMine()&&!/BUTTON|INPUT/.test(e.target.tagName)){e.preventDefault();doRoll();}
@@ -675,7 +745,7 @@ async function boot(){
   try{
     const f=await connect();
     joinInfo=await roomInfo(code);
-    if(!joinInfo){fatal='Такой игры нет. Проверьте ссылку.';screen='error';render();return;}
+    if(!joinInfo){fatal='Такой игры нет. Проверь ссылку.';screen='error';render();return;}
     const seats=joinInfo.seats||{};
     const mine=Object.keys(seats).find(i=>seats[i]===f.uid);
     if(mine!=null){enterRoom(code,+mine,joinInfo.meta.size);return;} // back after a reload
