@@ -75,11 +75,12 @@ h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;let
    smaller own pieces, labels in one shared column so every row starts at the same line */
 .board-box{container-type:inline-size}
 @container (max-width:460px){
-  /* one grid: the label column is as wide as the longest name in this game (up to 10 letters) */
-  .tray{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center;justify-content:start}
-  .tray-mine,.tray-others,.orow{display:contents}
-  .tray-lab,.orow .nm{width:auto;max-width:10ch;text-align:left}
-  .tray-mine .slots{gap:8px}.tray .pc,.tray .slot{width:32px}.tray .pc{border-width:2.5px}}
+  /* narrow: your pieces on one line, then all opponents flow side by side in a wrapping line to save height */
+  .tray{flex-direction:column;align-items:flex-start;gap:12px}
+  .tray-mine{gap:12px}
+  .tray-mine .slots{gap:8px}.tray .pc,.tray .slot{width:32px}.tray .pc{border-width:2.5px}
+  .tray-others{flex-direction:row;flex-wrap:wrap;gap:8px 18px}
+  .orow .nm{width:auto;max-width:10ch;text-align:left}}
 
 /* side column */
 .side{flex:0 1 392px;min-width:300px;max-width:392px;display:flex;flex-direction:column;gap:12px}
