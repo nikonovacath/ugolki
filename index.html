@@ -117,6 +117,16 @@ details summary{cursor:pointer;font-weight:700}
 details ul{padding-left:18px;margin:8px 0 0;display:flex;flex-direction:column;gap:4px}
 .results ol{margin:8px 0 12px;padding-left:22px;font-size:1.1rem}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{color:var(--muted);font-size:.9rem}
+input[type="text"]{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--table);color:var(--ink);width:100%;min-width:0}
+input[type="text"]:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.err{color:var(--danger);font-size:.95rem;margin:0}
+.big{font-family:var(--f-display);font-size:1.6rem}
+.invite{display:flex;gap:8px;flex-wrap:wrap}
+.invite input{flex:1 1 200px}
+.muted{color:var(--muted);margin:0}
+.prow .free{color:var(--muted);font-style:italic}
 </style>
 </head>
 <body>
@@ -155,18 +165,126 @@ const key=c=>c[0]+','+c[1];
 const cname=c=>FILES[c[0]]+(c[1]+1);
 
 const COLORS=[
-  {name:'Белые',fill:'#f3efe6',edge:'#3b2f25'},
-  {name:'Чёрные',fill:'#2a2522',edge:'#d6ccbb'},
-  {name:'Красные',fill:'#c6412f',edge:'#5a1a10'},
-  {name:'Синие',fill:'#2f62b5',edge:'#0f2753'},
+  {name:'белые',fill:'#f3efe6',edge:'#3b2f25'},
+  {name:'чёрные',fill:'#2a2522',edge:'#d6ccbb'},
+  {name:'красные',fill:'#c6412f',edge:'#5a1a10'},
+  {name:'синие',fill:'#2f62b5',edge:'#0f2753'},
 ];
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k){try{return localStorage.getItem(k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
-let setup={players:2,bots:1};
-let G=null;
+/* ---------- online (Firebase) ---------- */
+const FB_CONFIG={
+  apiKey:"AIzaSyDMcyQPFdDdbM4PUl5qbpV8gRTxMJnVp4g",
+  authDomain:"ugolki-d70b8.firebaseapp.com",
+  databaseURL:"https://ugolki-d70b8-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"ugolki-d70b8",
+  storageBucket:"ugolki-d70b8.firebasestorage.app",
+  messagingSenderId:"90178556292",
+  appId:"1:90178556292:web:a8fde49939c553e8a4cdd1",
+};
+const FB_SDK='https://www.gstatic.com/firebasejs/10.12.2/';
+const params=new URLSearchParams(location.search);
+let fb=null;      // firebase handles once connected
+let NET=null;     // {code, seat, size, data} while in an online room
+let acting=false; // true while this client is playing out its own turn; incoming echoes are ignored meanwhile
+let firstState=true;
+
+async function connect(){
+  if(fb)return fb;
+  const [appM,authM,dbM]=await Promise.all(['firebase-app.js','firebase-auth.js','firebase-database.js'].map(f=>import(FB_SDK+f)));
+  const app=appM.initializeApp(FB_CONFIG);
+  const auth=authM.getAuth(app);
+  // ?tab gives each browser tab its own player, handy for trying the game alone
+  if(params.has('tab'))await authM.setPersistence(auth,authM.browserSessionPersistence);
+  const cred=await authM.signInAnonymously(auth);
+  fb={db:dbM.getDatabase(app),uid:cred.user.uid,...dbM};
+  return fb;
+}
+const rref=(path)=>fb.ref(fb.db,'rooms/'+NET_code()+(path?'/'+path:''));
+function NET_code(){return NET?NET.code:params.get('room');}
+function makeCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=a[Math.floor(Math.random()*a.length)];return s;}
+function roomURL(code){const u=new URL(location.href);u.search='';u.searchParams.set('room',code);if(params.has('tab'))u.searchParams.set('tab','');return u.toString().replace('tab=','tab');}
+
+async function createRoom(name,friends){
+  const f=await connect();const code=makeCode();
+  await f.set(f.ref(f.db,`rooms/${code}/meta`),{size:friends+1,host:f.uid,created:f.serverTimestamp()});
+  history.replaceState(null,'',roomURL(code));params.set('room',code);
+  await joinRoom(code,name);
+}
+async function roomInfo(code){
+  const f=await connect();
+  const v=(await f.get(f.ref(f.db,'rooms/'+code))).val();
+  if(!v||!v.meta)return null;
+  return v;
+}
+async function joinRoom(code,name){
+  const f=await connect();
+  const v=await roomInfo(code);
+  if(!v)throw new Error('notfound');
+  const seats=v.seats||{};
+  let seat=Object.keys(seats).find(i=>seats[i]===f.uid);
+  if(seat==null){
+    for(let i=0;i<v.meta.size&&seat==null;i++){
+      if(seats[i])continue;
+      try{const r=await f.runTransaction(f.ref(f.db,`rooms/${code}/seats/${i}`),cur=>cur?undefined:f.uid);if(r.committed)seat=i;}catch(e){}
+    }
+    if(seat==null)throw new Error('full');
+    await f.set(f.ref(f.db,`rooms/${code}/players/${f.uid}`),{name,seat:+seat});
+  }
+  enterRoom(code,+seat,v.meta.size);
+}
+function enterRoom(code,seat,size){
+  NET={code,seat,size,data:null};firstState=true;G=null;screen='lobby';
+  NET.off=fb.onValue(fb.ref(fb.db,'rooms/'+code),s=>onRoom(s.val()||{}));
+  render();
+}
+function leaveRoom(){
+  if(NET&&NET.off)NET.off();
+  NET=null;G=null;params.delete('room');
+  const u=new URL(location.href);u.searchParams.delete('room');history.replaceState(null,'',u.toString().replace('tab=','tab'));
+}
+function roomPlayers(){ // seated players in seat order: [{uid,name,seat}]
+  const p=(NET.data&&NET.data.players)||{};
+  return Object.entries(p).map(([uid,v])=>({uid,name:v.name,seat:v.seat})).sort((a,b)=>a.seat-b.seat);
+}
+function onRoom(v){
+  NET.data=v;
+  if(!v.state){
+    G=null;screen='lobby';
+    const list=roomPlayers();
+    // the host deals once everyone has sat down
+    if(v.meta&&v.meta.host===fb.uid&&list.length>=NET.size)startOnline(list);
+    render();return;
+  }
+  if(acting)return;
+  const prevSeq=G?G.rollSeq:undefined;
+  G=normalize(v.state);screen='game';
+  if(firstState){
+    firstState=false;
+    // came back mid-turn (page reloaded during a move): give the turn back as a fresh roll
+    if(G.turn===NET.seat&&G.phase==='busy'){G.phase='roll';G.note='';G.options=[];sync();return;}
+  }
+  render();
+  if(prevSeq!==undefined&&G.rollSeq!==prevSeq&&!isMine()&&!reduced){const d=document.getElementById('die');if(d)d.classList.add('rolling');}
+}
+function startOnline(list){
+  G=makeState(list.map(p=>({name:p.name,bot:false})));
+  fb.set(rref('state'),pack(G));
+}
+function pack(g){return JSON.parse(JSON.stringify(g));}
+function normalize(s){ // Firebase drops empty arrays and nulls; put them back
+  s.places=s.places||[];s.log=s.log||[];s.roll=s.roll||null;
+  s.options=(s.options||[]).map(o=>Object.assign(o,{cap:o.cap||[]}));
+  s.players=(s.players||[]).map(p=>Object.assign(p,{pieces:p.pieces||[-1,-1,-1,-1]}));
+  return s;
+}
+function sync(){render();if(NET&&G)fb.set(rref('state'),pack(G));}
 
 /* ---------- rules ---------- */
+let G=null,SEL=null,screen='home';
 function occupants(k,pi){
   // Pieces standing on a cell. A piece waiting on its own corner after the lap still blocks everyone;
   // only players who have filled their whole corner drop out of the way.
@@ -198,15 +316,21 @@ function optionsFor(pi,r){
 }
 const finished=P=>P.pieces.every(p=>p>=28);
 const cur=()=>G.players[G.turn];
+const who=P=>P.name||COLORS[P.color].name;
+const isMine=()=>G&&G.phase!=='over'&&(NET?G.turn===NET.seat:!cur().bot);
 
 /* ---------- flow ---------- */
-function newGame(){
-  const n=setup.players;
-  const ps=[];
-  for(let i=0;i<n;i++)ps.push({color:i,corner:null,bot:i>=n-setup.bots,pieces:[-1,-1,-1,-1]});
-  G={players:ps,turn:0,phase:'roll',roll:null,options:[],sel:null,places:[],log:[],note:'',again:false};
-  addLog(`Игра началась. Первыми ходят ${COLORS[0].name}.`);
-  render(); maybeBot();
+function makeState(list){
+  const players=list.map((p,i)=>({color:i,corner:null,bot:!!p.bot,name:p.name,pieces:[-1,-1,-1,-1]}));
+  const g={players,turn:0,phase:'roll',roll:null,rollSeq:0,options:[],places:[],log:[],note:'',again:false};
+  g.log.unshift(`Игра началась. Первым ходит ${who(players[0])}.`);
+  return g;
+}
+function newLocalGame(name,bots){
+  const list=[{name:name||'Вы',bot:false}];
+  for(let i=1;i<=bots;i++)list.push({name:bots>1?`Бот ${i}`:'Бот',bot:true});
+  NET=null;G=makeState(list);screen='game';SEL=null;
+  render();maybeBot();
 }
 function addLog(t){G.log.unshift(t);G.log=G.log.slice(0,40);}
 function nextTurn(){
@@ -215,56 +339,63 @@ function nextTurn(){
   G.again=false;
 }
 function capture(list){
-  list.forEach(o=>{G.players[o.j].pieces[o.n]=-1;addLog(`${COLORS[cur().color].name} срубили фигуру: ${COLORS[G.players[o.j].color].name}.`);});
+  list.forEach(o=>{G.players[o.j].pieces[o.n]=-1;addLog(`${who(cur())} рубит фигуру: ${who(G.players[o.j])}.`);});
 }
 async function doRoll(forced){
   if(!G||G.phase!=='roll')return;
-  G.phase='busy';G.note='';G.sel=null;render();
-  const r=forced||1+Math.floor(Math.random()*6);
-  await animateDie(r);
-  G.roll=r;G.options=optionsFor(G.turn,r);
-  const nm=COLORS[cur().color].name;
-  if(!G.options.length){
-    if(r===6){G.note=`Выпало 6, но ходить некем. ${nm} бросают ещё раз.`;addLog(`${nm}: 6, ходов нет, бросок ещё раз.`);}
-    else{const P=cur();const none=!P.pieces.some(p=>p>=0&&p<28);
-      G.note=none&&P.pieces.includes(-1)?`Выпало ${r}. Чтобы выставить фигуру, нужна шестёрка. Ход переходит дальше.`:`Выпало ${r}, ходить некем. Ход переходит дальше.`;
-      addLog(`${nm}: ${r}, ходов нет.`);}
-    render();await wait(1400);
-    if(r===6)G.again=true;else nextTurn();
-    G.phase='roll';G.note='';render();maybeBot();return;
-  }
-  G.phase='choose';render();maybeBot();
+  acting=true;
+  try{
+    G.phase='busy';G.note='';SEL=null;sync();
+    const r=forced||1+Math.floor(Math.random()*6);
+    await animateDie(r);
+    G.roll=r;G.rollSeq=(G.rollSeq||0)+1;G.options=optionsFor(G.turn,r);
+    const nm=who(cur());
+    if(!G.options.length){
+      if(r===6){G.note=`Выпало 6, но ходить некем. ${nm} бросает ещё раз.`;addLog(`${nm}: 6, ходов нет, бросок ещё раз.`);}
+      else{const P=cur();const none=!P.pieces.some(p=>p>=0&&p<28);
+        G.note=none&&P.pieces.includes(-1)?`Выпало ${r}. Чтобы выставить фигуру, нужна шестёрка. Ход переходит дальше.`:`Выпало ${r}, ходить некем. Ход переходит дальше.`;
+        addLog(`${nm}: ${r}, ходов нет.`);}
+      sync();await wait(1400);
+      if(r===6)G.again=true;else nextTurn();
+      G.phase='roll';G.note='';sync();
+    }else{G.phase='choose';sync();}
+  }finally{acting=false;}
+  maybeBot();
 }
 async function apply(opt){
   if(!G||G.phase!=='choose'||!opt)return;
-  G.phase='busy';G.sel=null;
-  const P=cur(),nm=COLORS[P.color].name;
-  if(opt.type==='place'){
-    if(P.corner==null){P.corner=opt.corner;addLog(`${nm} выбрали угол ${CORNERS[opt.corner]}.`);}
-    capture(opt.cap);P.pieces[opt.n]=0;
-    addLog(`${nm} выставили фигуру на ${CORNERS[P.corner]}.`);render();
-  }else{
-    for(let s=opt.from+1;s<=opt.to;s++){P.pieces[opt.n]=s;render();await wait(reduced?0:130);}
-    capture(opt.cap);
-    const dest=cname(cellAt(P.corner,opt.to));
-    addLog(opt.to>=28&&opt.from<28?`${nm} завели фигуру домой на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
-  }
-  if(finished(P)){
-    G.places.push(G.turn);
-    addLog(`${nm} собрали весь уголок. ${G.places.length}-е место!`);
-    if(G.places.length>=G.players.length-1){
-      G.players.forEach((_,i)=>{if(!G.places.includes(i))G.places.push(i);});
-      G.phase='over';render();return;
+  acting=true;
+  try{
+    G.phase='busy';SEL=null;
+    const P=cur(),nm=who(P);
+    if(opt.type==='place'){
+      if(P.corner==null){P.corner=opt.corner;addLog(`${nm} выбирает угол ${CORNERS[opt.corner]}.`);}
+      capture(opt.cap);P.pieces[opt.n]=0;
+      addLog(`${nm}: новая фигура на ${CORNERS[P.corner]}.`);sync();
+    }else{
+      for(let s=opt.from+1;s<=opt.to;s++){P.pieces[opt.n]=s;sync();await wait(reduced?0:130);}
+      capture(opt.cap);
+      const dest=cname(cellAt(P.corner,opt.to));
+      addLog(opt.to>=28&&opt.from<28?`${nm}: фигура дома на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
     }
-    nextTurn();
-  }else if(G.roll===6)G.again=true;
-  else nextTurn();
-  G.phase='roll';G.options=[];render();maybeBot();
+    if(finished(P)){
+      G.places.push(G.turn);
+      addLog(`${nm} собрал(а) весь уголок. ${G.places.length}-е место!`);
+      if(G.places.length>=G.players.length-1){
+        G.players.forEach((_,i)=>{if(!G.places.includes(i))G.places.push(i);});
+        G.phase='over';G.options=[];sync();return;
+      }
+      nextTurn();
+    }else if(G.roll===6)G.again=true;
+    else nextTurn();
+    G.phase='roll';G.options=[];sync();
+  }finally{acting=false;}
+  maybeBot();
 }
 let botTimer=null;
 function maybeBot(){
   clearTimeout(botTimer);
-  if(!G||!cur().bot)return;
+  if(NET||!G||G.phase==='over'||!cur().bot)return;
   if(G.phase==='roll')botTimer=setTimeout(()=>doRoll(),800);
   if(G.phase==='choose')botTimer=setTimeout(()=>apply(botPick()),900);
 }
@@ -303,6 +434,7 @@ for(let y=7;y>=0;y--)for(let x=0;x<8;x++){
   boardEl.appendChild(el);cells[x+','+y]=el;
 }
 const tint=col=>col.fill==='#f3efe6'?'#fff':col.fill;
+const disc=c=>`<span class="disc" style="--fill:${c.fill};--edge:${c.edge}"></span>`;
 function pieceEl(col){const pc=document.createElement('div');pc.className='pc';pc.style.setProperty('--fill',col.fill);pc.style.setProperty('--edge',col.edge);return pc;}
 function makeButton(el,label){el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label',label);}
 function render(){renderBoard();renderTray();renderSide();}
@@ -312,6 +444,7 @@ function renderBoard(){
     el.style.removeProperty('--tint');
     ['data-opt','tabindex','role','aria-label'].forEach(a=>el.removeAttribute(a));el.innerHTML='';
   });
+  CORNER_XY.forEach((c,i)=>cells[key(c)].insertAdjacentHTML('beforeend',`<span class="cname">${CORNERS[i]}</span>`));
   if(!G)return;
   G.players.forEach(P=>{
     if(P.corner==null)return;
@@ -319,29 +452,28 @@ function renderBoard(){
     const st=cells[key(CORNER_XY[P.corner])];st.classList.add('start','home');st.style.setProperty('--tint',tint(col));
     diag(P.corner).forEach(c=>{const el=cells[key(c)];el.classList.add('home');el.style.setProperty('--tint',tint(col));});
   });
-  CORNER_XY.forEach((c,i)=>cells[key(c)].insertAdjacentHTML('beforeend',`<span class="cname">${CORNERS[i]}</span>`));
   const at={};
   G.players.forEach((P,j)=>P.pieces.forEach((pos,n)=>{if(pos<0)return;const k=key(cellAt(P.corner,pos));(at[k]=at[k]||[]).push({j,n});}));
-  const human=!cur().bot&&G.phase==='choose';
+  const human=isMine()&&G.phase==='choose';
   Object.entries(at).forEach(([k,list])=>{
     const el=cells[k];if(list.length>1)el.classList.add('pair');
     list.forEach(({j,n})=>{
       const pc=pieceEl(COLORS[G.players[j].color]);
       if(human&&j===G.turn&&G.options.some(o=>o.type==='move'&&o.n===n)){
         pc.classList.add('can');pc.dataset.n=n;makeButton(pc,'Выбрать фигуру');
-        if(G.sel&&G.sel.kind==='piece'&&G.sel.n===n)pc.classList.add('sel');
+        if(SEL&&SEL.kind==='piece'&&SEL.n===n)pc.classList.add('sel');
       }
       el.appendChild(pc);
     });
   });
   // corners you could place on: dashed hint right after the roll, pulsing once a reserve piece is picked
   if(human)G.options.forEach(o=>{if(o.type==='place')cells[key(CORNER_XY[o.corner])].classList.add('place-hint');});
-  if(human&&G.sel)G.options.forEach((o,i)=>{
+  if(human&&SEL)G.options.forEach((o,i)=>{
     const P=cur();
-    if(G.sel.kind==='reserve'&&o.type==='place'){
+    if(SEL.kind==='reserve'&&o.type==='place'){
       const el=cells[key(CORNER_XY[o.corner])];el.classList.add('can-place');el.dataset.opt=i;makeButton(el,`Поставить фигуру на ${CORNERS[o.corner]}`);
     }
-    if(G.sel.kind==='piece'&&o.type==='move'&&o.n===G.sel.n){
+    if(SEL.kind==='piece'&&o.type==='move'&&o.n===SEL.n){
       const c=cellAt(P.corner,o.to),el=cells[key(c)];el.classList.add('dest');el.dataset.opt=i;makeButton(el,`Пойти на ${cname(c)}`);
     }
   });
@@ -349,113 +481,208 @@ function renderBoard(){
 function renderTray(){
   trayEl.innerHTML='';
   if(!G)return;
-  const canPlace=!cur().bot&&G.phase==='choose'&&G.options.some(o=>o.type==='place');
+  const canPlace=isMine()&&G.phase==='choose'&&G.options.some(o=>o.type==='place');
   G.players.forEach((P,j)=>{
     const col=COLORS[P.color],row=document.createElement('div');row.className='tray-row';
-    row.innerHTML=`<span class="nm">${col.name}</span>`;
+    row.innerHTML=`<span class="nm">${esc(who(P))}</span>`;
     const res=P.pieces.filter(p=>p<0).length;
     if(!res)row.insertAdjacentHTML('beforeend','<span class="empty">все в игре</span>');
     for(let i=0;i<res;i++){
       const pc=pieceEl(col);
       if(j===G.turn&&canPlace&&i===0){pc.classList.add('can');pc.dataset.res='1';makeButton(pc,'Взять фигуру из запаса');
-        if(G.sel&&G.sel.kind==='reserve')pc.classList.add('sel');}
+        if(SEL&&SEL.kind==='reserve')pc.classList.add('sel');}
       row.appendChild(pc);
     }
     trayEl.appendChild(row);
   });
 }
 function hintText(){
-  const P=cur(),nm=COLORS[P.color].name;
-  if(G.note)return G.note;
+  const P=cur(),nm=esc(who(P));
+  if(G.note)return esc(G.note);
+  if(!isMine()){
+    if(P.bot)return G.phase==='choose'?`${nm} выбирает ход…`:`${nm} думает…`;
+    return G.phase==='choose'?`Выпало <b>${G.roll}</b>. ${nm} выбирает ход…`:`Ходит ${nm}…`;
+  }
   if(G.phase==='roll'||G.phase==='busy'){
-    if(P.bot)return `${nm} (бот) думают…`;
     if(G.again)return `Выпала шестёрка: <b>бросайте ещё раз</b>.`;
     if(P.corner==null)return `Бросайте кубик. На шестёрке выставите первую фигуру на любой свободный угол, он станет вашим.`;
     return P.pieces.some(p=>p>=0)?`Бросайте кубик.`:`Бросайте кубик. Чтобы выставить фигуру на ${CORNERS[P.corner]}, нужна шестёрка.`;
   }
   if(G.phase==='choose'){
-    if(P.bot)return `${nm} (бот) выбирают ход…`;
     const pl=G.options.some(o=>o.type==='place'),mv=G.options.some(o=>o.type==='move');
     let t=`Выпало <b>${G.roll}</b>. `;
-    if(G.sel&&G.sel.kind==='reserve')t+=P.corner==null?`Выберите угол. Он станет вашим до конца игры.`:`Нажмите на свой угол ${CORNERS[P.corner]}.`;
-    else if(G.sel)t+=`Выберите клетку.`;
+    if(SEL&&SEL.kind==='reserve')t+=P.corner==null?`Выберите угол. Он станет вашим до конца игры.`:`Нажмите на свой угол ${CORNERS[P.corner]}.`;
+    else if(SEL)t+=`Выберите клетку.`;
     else if(pl&&mv)t+=`Сделайте ход или выставьте фигуру из запаса под доской.`;
     else if(pl)t+=P.corner==null?`Выставьте фигуру из запаса под доской на любой свободный угол.`:`Выставьте фигуру из запаса под доской.`;
     else t+=`Сделайте ход.`;
-    if(!G.sel&&G.options.some(o=>o.cap.length))t+=` Есть ход со срубом!`;
+    if(!SEL&&G.options.some(o=>o.cap.length))t+=` Есть ход со срубом!`;
     if(G.roll===6)t+=` Потом бросок ещё раз.`;
     return t;
   }
   return '';
 }
 function renderSide(){
-  if(!G){renderSetup();return;}
+  if(screen==='home')return renderHome();
+  if(screen==='join')return renderJoin();
+  if(screen==='error')return renderError();
+  if(screen==='lobby'||!G)return renderLobby();
   const P=cur(),col=COLORS[P.color];
-  const canRoll=G.phase==='roll'&&!P.bot;
+  const canRoll=G.phase==='roll'&&isMine();
   let top;
   if(G.phase==='over'){
-    top=`<div class="card results"><h2>Игра окончена</h2><ol>${G.places.map(i=>`<li>${COLORS[G.players[i].color].name}${G.players[i].bot?' (бот)':''}</li>`).join('')}</ol>
+    top=`<div class="card results"><h2>Игра окончена</h2><ol>${G.places.map(i=>`<li>${esc(who(G.players[i]))}</li>`).join('')}</ol>
       <button class="primary" id="again">Сыграть ещё</button></div>`;
   }else{
     top=`<div class="card">
-      <div class="turn"><span class="disc" style="--fill:${col.fill};--edge:${col.edge}"></span>Ход: ${col.name}${P.bot?' (бот)':''}</div>
+      <div class="turn">${disc(col)}${NET&&G.turn===NET.seat?'Ваш ход':'Ход: '+esc(who(P))}</div>
       <div class="dice-row">${dieHTML(G.roll)}
-        <button class="primary" id="roll" ${canRoll?'':'disabled'}>${G.again?'Бросить ещё раз':'Бросить кубик'}</button></div>
+        <button class="primary" id="roll" ${canRoll?'':'disabled'}>${G.again&&canRoll?'Бросить ещё раз':'Бросить кубик'}</button></div>
       <div class="hint" aria-live="polite">${hintText()}</div>
     </div>`;
   }
   sideEl.innerHTML=top+`
     <div class="card"><h2>Игроки</h2><div class="players">${G.players.map((Q,i)=>{const c=COLORS[Q.color];
       const res=Q.pieces.filter(p=>p<0).length,home=Q.pieces.filter(p=>p>=28).length,on=4-res-home;const pl=G.places.indexOf(i);
-      return `<div class="prow${i===G.turn&&G.phase!=='over'?' active':''}"><span class="disc" style="--fill:${c.fill};--edge:${c.edge}"></span>
-        <div><div class="nm">${c.name}${Q.bot?' (бот)':''} · ${Q.corner==null?'угол не выбран':CORNERS[Q.corner]}</div><div class="st">запас ${res} · на поле ${on} · дома ${home}</div></div>
+      return `<div class="prow${i===G.turn&&G.phase!=='over'?' active':''}">${disc(c)}
+        <div><div class="nm">${esc(who(Q))}${NET&&i===NET.seat?' (вы)':''} · ${Q.corner==null?'угол не выбран':CORNERS[Q.corner]}</div><div class="st">запас ${res} · на поле ${on} · дома ${home}</div></div>
         ${pl>=0&&(G.phase==='over'||pl<G.players.length-1)?`<span class="place">${pl+1} место</span>`:''}</div>`;}).join('')}</div></div>
-    <div class="card"><h2>Ходы</h2><ul class="log">${G.log.map(l=>`<li>${l}</li>`).join('')}</ul></div>
+    <div class="card"><h2>Ходы</h2><ul class="log">${G.log.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></div>
     <button id="restart">Новая игра</button>`;
   document.getElementById('roll')?.addEventListener('click',()=>doRoll());
-  document.getElementById('again')?.addEventListener('click',newGame);
-  document.getElementById('restart').addEventListener('click',()=>{clearTimeout(botTimer);G=null;render();});
+  document.getElementById('again')?.addEventListener('click',()=>{
+    const list=G.players.map(p=>({name:p.name,bot:p.bot}));
+    G=makeState(list);SEL=null;NET?sync():(render(),maybeBot());
+  });
+  document.getElementById('restart').addEventListener('click',goHome);
 }
-function renderSetup(){
-  const n=setup.players;
-  sideEl.innerHTML=`<div class="card setup">
+function goHome(){clearTimeout(botTimer);leaveRoom();screen='home';render();}
+
+let home={mode:'bots',count:1,error:''};
+const RULES=`<details><summary>Правила</summary><ul>
+  <li>Фигура выходит на угол только на шестёрке. Первую ставишь на любой свободный угол, и он становится твоим. После шестёрки бросок ещё раз.</li>
+  <li>Ходим по краю доски по часовой стрелке, полный круг, потом по диагонали в свой уголок: для a1 это a1, b2, c3, d4.</li>
+  <li>Перепрыгивать фигуры нельзя, ни свои, ни чужие. Встать точно на чужую можно: она срублена и уходит в запас.</li>
+  <li>В уголок заходят только точным броском, перелететь дальний угол уголка нельзя.</li>
+  <li>Игра идёт, пока не определятся все места.</li>
+</ul></details>`;
+function renderHome(){
+  const friends=home.mode==='friends';
+  sideEl.innerHTML=`<form class="card setup" id="homeForm">
     <h2>Новая игра</h2>
-    <div class="srow"><span class="lab">Игроков</span><div class="modes">${[2,3,4].map(v=>`<button data-players="${v}" aria-pressed="${n===v}">${v}</button>`).join('')}</div></div>
-    <div class="srow"><span class="lab">Из них ботов</span><div class="modes">${[...Array(n)].map((_,v)=>`<button data-bots="${v}" aria-pressed="${setup.bots===v}">${v}</button>`).join('')}</div></div>
-    ${[...Array(n)].map((_,i)=>{const c=COLORS[i];return `<div class="srow"><span class="disc" style="--fill:${c.fill};--edge:${c.edge}"></span>
-      <span>${i+1}. ${c.name}${i>=n-setup.bots?' (бот)':''}</span></div>`;}).join('')}
-    <button class="primary" id="start">Начать</button>
-    <details><summary>Правила</summary><ul>
-      <li>Фигура выходит на угол только на шестёрке. Первую ставишь на любой свободный угол, и он становится твоим. После шестёрки бросок ещё раз.</li>
-      <li>Ходим по краю доски по часовой стрелке, полный круг, потом по диагонали в свой уголок: для a1 это a1, b2, c3, d4.</li>
-      <li>Перепрыгивать фигуры нельзя, ни свои, ни чужие. Встать точно на чужую можно: она срублена и уходит в запас.</li>
-      <li>В уголок заходят только точным броском, перелететь дальний угол уголка нельзя.</li>
-      <li>Игра идёт, пока не определятся все места.</li>
-    </ul></details></div>`;
-  sideEl.querySelectorAll('[data-players]').forEach(b=>b.addEventListener('click',()=>{setup.players=+b.dataset.players;setup.bots=Math.min(setup.bots,setup.players-1);render();}));
-  sideEl.querySelectorAll('[data-bots]').forEach(b=>b.addEventListener('click',()=>{setup.bots=+b.dataset.bots;render();}));
-  document.getElementById('start').addEventListener('click',newGame);
+    <div class="modes" role="group" aria-label="Режим">
+      <button type="button" data-mode="bots" aria-pressed="${!friends}">С ботами</button>
+      <button type="button" data-mode="friends" aria-pressed="${friends}">С друзьями</button>
+    </div>
+    <div class="field"><label for="name">Ваше имя</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Например, Катя"></div>
+    <div class="srow"><span class="lab">${friends?'Друзей':'Ботов'}</span><div class="modes">${[1,2,3].map(v=>`<button type="button" data-count="${v}" aria-pressed="${home.count===v}">${v}</button>`).join('')}</div></div>
+    ${friends?`<p class="muted">Создадим игру и дадим ссылку для друзей. Игра начнётся, когда все зайдут.</p>`:''}
+    ${home.error?`<p class="err">${esc(home.error)}</p>`:''}
+    <button class="primary" type="submit" id="start">${friends?'Создать игру':'Начать'}</button>
+    ${RULES}</form>`;
+  const nameEl=document.getElementById('name');
+  sideEl.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{home.mode=b.dataset.mode;home.error='';store.set('ugolki-name',nameEl.value.trim());render();}));
+  sideEl.querySelectorAll('[data-count]').forEach(b=>b.addEventListener('click',()=>{home.count=+b.dataset.count;store.set('ugolki-name',nameEl.value.trim());render();}));
+  document.getElementById('homeForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const name=nameEl.value.trim();store.set('ugolki-name',name);
+    if(!friends){home.error='';newLocalGame(name,home.count);return;}
+    if(!name){home.error='Напишите имя, чтобы друзья видели, кто играет.';render();return;}
+    const btn=document.getElementById('start');btn.disabled=true;btn.textContent='Создаём игру…';
+    try{await createRoom(name,home.count);}catch(err){home.error=netError(err);render();}
+  });
 }
+let joinInfo=null,joinError='';
+function renderJoin(){
+  if(!joinInfo){sideEl.innerHTML=`<div class="card"><p class="muted">Загружаем игру…</p></div>`;return;}
+  const list=Object.values(joinInfo.players||{}).sort((a,b)=>a.seat-b.seat),size=joinInfo.meta.size,full=list.length>=size||joinInfo.state;
+  sideEl.innerHTML=`<form class="card setup" id="joinForm">
+    <h2>Вас зовут в игру</h2>
+    <div class="players">${[...Array(size)].map((_,i)=>{const p=list.find(x=>x.seat===i);
+      return `<div class="prow">${disc(COLORS[i])}<div class="nm">${p?esc(p.name):'<span class="free">свободно</span>'}</div></div>`;}).join('')}</div>
+    ${full?`<p class="err">Все места уже заняты.</p><button type="button" class="primary" id="toHome">Начать свою игру</button>`:`
+    <div class="field"><label for="name">Ваше имя</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Например, Катя"></div>
+    ${joinError?`<p class="err">${esc(joinError)}</p>`:''}
+    <button class="primary" type="submit" id="join">Присоединиться</button>`}
+    ${RULES}</form>`;
+  document.getElementById('toHome')?.addEventListener('click',goHome);
+  document.getElementById('joinForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const name=document.getElementById('name').value.trim();store.set('ugolki-name',name);
+    if(!name){joinError='Напишите имя, чтобы остальные видели, кто играет.';render();return;}
+    const btn=document.getElementById('join');btn.disabled=true;btn.textContent='Заходим…';
+    try{await joinRoom(params.get('room'),name);}
+    catch(err){if(err.message==='full'){joinInfo=await roomInfo(params.get('room'));}else joinError=netError(err);render();}
+  });
+}
+function renderLobby(){
+  const list=roomPlayers(),size=NET.size,link=roomURL(NET.code);
+  sideEl.innerHTML=`<div class="card setup">
+    <h2>Ждём игроков</h2>
+    <div class="big">${list.length} из ${size}</div>
+    <div class="players">${[...Array(size)].map((_,i)=>{const p=list.find(x=>x.seat===i);
+      return `<div class="prow">${disc(COLORS[i])}<div class="nm">${p?esc(p.name)+(i===NET.seat?' (вы)':''):'<span class="free">ждём…</span>'}</div></div>`;}).join('')}</div>
+    <div class="field"><label for="invite">Ссылка-приглашение</label>
+      <div class="invite"><input type="text" id="invite" readonly value="${esc(link)}"><button id="copy">Скопировать</button>${navigator.share?'<button id="share">Отправить</button>':''}</div></div>
+    <p class="muted">Отправьте ссылку друзьям. Игра начнётся сама, когда все зайдут.</p>
+    <button id="restart">Выйти</button></div>`;
+  const inp=document.getElementById('invite');
+  document.getElementById('copy').addEventListener('click',e=>{
+    const b=e.currentTarget;
+    navigator.clipboard.writeText(link).then(()=>{b.textContent='Скопировано';},()=>{inp.select();b.textContent='Выделено, скопируйте';});
+  });
+  document.getElementById('share')?.addEventListener('click',()=>navigator.share({title:'Уголки',text:'Сыграем в уголки?',url:link}).catch(()=>{}));
+  document.getElementById('restart').addEventListener('click',goHome);
+}
+let fatal='';
+function renderError(){
+  sideEl.innerHTML=`<div class="card setup"><h2>Не получилось</h2><p>${esc(fatal)}</p><button class="primary" id="toHome">На главную</button></div>`;
+  document.getElementById('toHome').addEventListener('click',goHome);
+}
+function netError(err){
+  const c=(err&&(err.code||err.message))||'';
+  if(c==='notfound')return 'Такой игры нет. Проверьте ссылку.';
+  if(c==='full')return 'Все места уже заняты.';
+  if(/auth\/(admin-restricted|operation-not-allowed|configuration-not-found)/.test(c))return 'Онлайн-режим ещё не включён в настройках сервера (анонимный вход в Firebase).';
+  if(/network|Failed to fetch|import/i.test(c))return 'Нет связи с сервером игры. Проверьте интернет и попробуйте ещё раз.';
+  return 'Не удалось подключиться к игре. '+c;
+}
+
 function select(sel){
-  if(!G||G.phase!=='choose'||cur().bot)return;
-  const same=G.sel&&G.sel.kind===sel.kind&&G.sel.n===sel.n;
-  G.sel=same?null:sel;render();
+  if(!G||G.phase!=='choose'||!isMine())return;
+  const same=SEL&&SEL.kind===sel.kind&&SEL.n===sel.n;
+  SEL=same?null:sel;render();
 }
 boardEl.addEventListener('click',e=>{
   if(!G)return;
   const pc=e.target.closest('.pc.can');
   if(pc){select({kind:'piece',n:+pc.dataset.n});return;}
   const t=e.target.closest('[data-opt]');
-  if(t)apply(G.options[+t.dataset.opt]);
+  if(t&&isMine())apply(G.options[+t.dataset.opt]);
 });
 trayEl.addEventListener('click',e=>{if(e.target.closest('[data-res]'))select({kind:'reserve'});});
 document.addEventListener('keydown',e=>{
   if((e.key==='Enter'||e.key===' ')&&e.target.getAttribute('role')==='button'){e.preventDefault();e.target.click();return;}
-  if(e.code==='Space'&&G&&G.phase==='roll'&&!cur().bot&&e.target.tagName!=='BUTTON'){e.preventDefault();doRoll();}
+  if(e.code==='Space'&&G&&G.phase==='roll'&&isMine()&&!/BUTTON|INPUT/.test(e.target.tagName)){e.preventDefault();doRoll();}
 });
 // test hook: ugolki.roll(6) forces a die value
-window.ugolki={get G(){return G},roll:n=>doRoll(n),apply:i=>apply(G.options[i])};
-render();
+window.ugolki={get G(){return G},get NET(){return NET},roll:n=>doRoll(n),apply:i=>apply(G.options[i])};
+
+async function boot(){
+  const code=params.get('room');
+  if(!code){screen='home';render();return;}
+  screen='join';render();
+  try{
+    const f=await connect();
+    joinInfo=await roomInfo(code);
+    if(!joinInfo){fatal='Такой игры нет. Проверьте ссылку.';screen='error';render();return;}
+    const seats=joinInfo.seats||{};
+    const mine=Object.keys(seats).find(i=>seats[i]===f.uid);
+    if(mine!=null){enterRoom(code,+mine,joinInfo.meta.size);return;} // back after a reload
+    render();
+  }catch(err){fatal=netError(err);screen='error';render();}
+}
+boot();
 </script>
 </body>
 </html>
