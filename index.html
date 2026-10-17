@@ -22,6 +22,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-mono);fo
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
 .wrap{max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.head-actions{display:flex;align-items:center;gap:4px}
 h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;letter-spacing:-.03em;margin:0}
 .sub{margin:2px 0 0;font-size:12px;line-height:19px;color:var(--text);text-transform:uppercase}
 .game{display:flex;gap:15px;align-items:flex-start;justify-content:center}
@@ -131,7 +132,7 @@ input[type="text"]::placeholder{color:rgba(0,0,0,.37)}
 .die i{width:11px;height:11px;border-radius:50%;background:#000;visibility:hidden}
 .die i.on{visibility:visible}
 .die.six{border-color:var(--six)} .die.six i{background:var(--six)}
-.die.rolling{animation:shake .5s}
+.die.rolling{animation:shake .8s}
 @keyframes shake{20%{transform:rotate(-14deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(5deg)}}
 .dice-row .btn-main{height:66px;flex:1;min-width:0;padding-inline:12px}
 .hint{background:var(--hint);border-radius:10px;padding:12px;font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase}
@@ -170,7 +171,7 @@ details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--lin
 <div class="wrap">
   <header>
     <div><h1>Уголки</h1><p class="sub">Дедушкина игра на шахматной доске</p></div>
-    <button class="linkbtn" id="topNew" hidden>Новая игра</button>
+    <div class="head-actions"><button class="linkbtn" id="soundBtn" type="button"></button><button class="linkbtn" id="topNew" hidden>Новая игра</button></div>
   </header>
   <div class="game">
     <div class="board-box">
@@ -300,7 +301,7 @@ function onRoom(v){
     render();return;
   }
   if(acting)return;
-  const prevSeq=G?G.rollSeq:undefined;
+  const old=G,prevStart=G?(G.rollStart||0):undefined,prevSeq=G?(G.rollSeq||0):undefined;
   G=normalize(v.state);screen='game';
   if(firstState){
     firstState=false;
@@ -308,7 +309,18 @@ function onRoom(v){
     if(G.turn===NET.seat&&G.phase==='busy'){G.phase='roll';G.note='';G.options=[];sync();return;}
   }
   render();
-  if(prevSeq!==undefined&&G.rollSeq!==prevSeq&&!isMine()&&!reduced){const d=document.getElementById('die');if(d)d.classList.add('rolling');}
+  if(prevStart!==undefined&&(G.rollStart||0)!==prevStart&&G.turn!==NET.seat){sfx('dice');const d=document.getElementById('die');if(d&&!reduced)d.classList.add('rolling');}
+  if(prevSeq!==undefined&&(G.rollSeq||0)!==prevSeq&&G.roll===6&&G.turn!==NET.seat)sfx('six');
+  if(old)remoteSounds(old);
+}
+// someone else moved: play the same sounds the mover hears, worked out from what changed on the board
+function remoteSounds(old){
+  let step=false,cap=false,home=false;
+  G.players.forEach((P,j)=>{const O=old.players[j];if(!O)return;P.pieces.forEach((p,n)=>{const o=O.pieces[n];if(p===o)return;
+    if(o>=0&&p<0)cap=true;else if(p>o||(o<0&&p===0)){step=true;if(p>=28&&o<28)home=true;}});});
+  if(cap)sfx('capture');else if(home)sfx('home');else if(step)sfx('step');
+  if(old.phase!=='over'&&G.phase==='over')endSound();
+  else if(old.turn!==NET.seat&&G.turn===NET.seat&&G.phase!=='over')sfx('turn');
 }
 function startOnline(list){
   G=makeState(list.map(p=>({name:p.name,bot:false})));
@@ -385,10 +397,11 @@ async function doRoll(forced){
   if(!G||G.phase!=='roll')return;
   acting=true;
   try{
-    G.phase='busy';G.note='';SEL=null;sync();
+    G.phase='busy';G.note='';SEL=null;G.rollStart=(G.rollStart||0)+1;sync();
     const r=forced||1+Math.floor(Math.random()*6);
     await animateDie(r);
     G.roll=r;G.rollSeq=(G.rollSeq||0)+1;G.options=optionsFor(G.turn,r);
+    if(r===6)sfx('six');
     const nm=who(cur());
     if(!G.options.length){
       if(r===6){G.note=`Выпало 6, но ходить некем. ${nm} бросает ещё раз.`;addLog(`${nm}: 6, ходов нет, бросок ещё раз.`);}
@@ -411,10 +424,12 @@ async function apply(opt){
     if(opt.type==='place'){
       if(P.corner==null){P.corner=opt.corner;addLog(`${nm} выбирает угол ${CORNERS[opt.corner]}.`);}
       capture(opt.cap);P.pieces[opt.n]=0;
+      sfx(opt.cap.length?'capture':'step');
       addLog(`${nm}: новая фишка на ${CORNERS[P.corner]}.`);sync();
     }else{
-      for(let s=opt.from+1;s<=opt.to;s++){P.pieces[opt.n]=s;sync();await wait(reduced?0:130);}
+      for(let s=opt.from+1;s<=opt.to;s++){P.pieces[opt.n]=s;sfx('step');sync();await wait(reduced?0:130);}
       capture(opt.cap);
+      if(opt.cap.length)sfx('capture');else if(opt.to>=28&&opt.from<28)sfx('home');
       const dest=cname(cellAt(P.corner,opt.to));
       addLog(opt.to>=28&&opt.from<28?`${nm}: фишка дома на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
     }
@@ -423,7 +438,7 @@ async function apply(opt){
       addLog(`${nm} собрал(а) весь уголок. ${G.places.length}-е место!`);
       if(G.places.length>=G.players.length-1){
         G.players.forEach((_,i)=>{if(!G.places.includes(i))G.places.push(i);});
-        G.phase='over';G.options=[];sync();return;
+        G.phase='over';G.options=[];sync();endSound();return;
       }
       nextTurn();
     }else if(G.roll===6)G.again=true;
@@ -454,14 +469,30 @@ function botPick(){
   return G.options.slice().sort((a,b)=>score(b)-score(a))[0];
 }
 
+/* ---------- sound ---------- */
+const SOUND={on:store.get('ugolki-sound')!=='off',cache:{}};
+function sfx(name){
+  if(!SOUND.on)return;
+  let a=SOUND.cache[name];
+  if(!a){a=SOUND.cache[name]=new Audio('sounds/'+name+'.mp3');a.preload='auto';}
+  const n=a.paused||a.ended?a:a.cloneNode(); // a quick second play overlaps instead of cutting the first
+  try{n.currentTime=0;const p=n.play();if(p)p.catch(()=>{});}catch(e){}
+}
+function endSound(){const me=NET?NET.seat:mySeat();sfx(G.places[0]===me?'win':'lose');}
+const soundBtn=document.getElementById('soundBtn');
+function paintSound(){soundBtn.textContent=SOUND.on?'Звук: вкл':'Звук: выкл';}
+soundBtn.addEventListener('click',()=>{SOUND.on=!SOUND.on;store.set('ugolki-sound',SOUND.on?'on':'off');paintSound();});
+paintSound();
+
 /* ---------- dice ---------- */
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 function dieHTML(v){return `<div class="die${v===6?' six':''}" id="die" aria-label="Кубик: ${v||'не брошен'}">${[...Array(9)].map((_,i)=>`<i class="${v&&PIPS[v].includes(i)?'on':''}"></i>`).join('')}</div>`;}
 async function animateDie(final){
+  sfx('dice');
   const d=document.getElementById('die');
   if(!d||reduced)return;
   d.classList.remove('six');d.classList.add('rolling');
-  for(let k=0;k<8;k++){const v=1+Math.floor(Math.random()*6);d.querySelectorAll('i').forEach((p,i)=>p.classList.toggle('on',PIPS[v].includes(i)));await wait(60);}
+  for(let k=0;k<11;k++){const v=1+Math.floor(Math.random()*6);d.querySelectorAll('i').forEach((p,i)=>p.classList.toggle('on',PIPS[v].includes(i)));await wait(75);}
 }
 
 /* ---------- render ---------- */
