@@ -90,6 +90,44 @@ h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;let
 
 /* side column */
 .side{flex:0 1 392px;min-width:300px;max-width:392px;display:flex;flex-direction:column;gap:12px}
+.side-inner{display:flex;flex-direction:column;gap:12px}
+.side-inner:empty{display:none}
+/* chat (games with friends): built once and only its message list is refreshed, so typing is never interrupted */
+.chat{gap:12px}
+.chat-list{list-style:none;margin:0;padding:0 2px 0 0;display:flex;flex-direction:column;gap:10px;max-height:240px;overflow-y:auto}
+.chat-empty{font-size:12px;line-height:18px;color:var(--muted);text-transform:uppercase}
+.msg{display:flex;flex-direction:column;gap:2px}
+.msg-head{display:flex;align-items:center;gap:6px;font-size:12px;line-height:18px;text-transform:uppercase;color:var(--text)}
+.msg-head .ico{--s:14px;border-width:2px}
+.msg-time{margin-left:auto;color:var(--muted)}
+.msg-text{font-size:14px;line-height:20px;color:#000;overflow-wrap:anywhere;padding-left:20px}
+.chat-form{display:flex;gap:8px;align-items:center}
+.chat-form input{flex:1;min-width:0;height:42px}
+#chatInput{text-transform:none}
+#chatInput::placeholder{text-transform:uppercase}
+.chat-form .chat-send{width:42px;height:42px;padding:0;flex:none;font-size:18px;line-height:1}
+.emoji-wrap{position:relative;flex:none}
+.emoji-btn{font-size:18px;line-height:1}
+.emoji-pop{position:absolute;right:0;bottom:calc(100% + 6px);z-index:20;background:var(--card);border:1px solid #000;border-radius:16px;padding:8px;box-shadow:0 3px 11px -2px rgba(0,0,0,.25);display:grid;grid-template-columns:repeat(6,36px);gap:4px}
+.emoji-pop button{width:36px;height:36px;padding:0;border:0;border-radius:10px;font-size:20px;line-height:1;text-transform:none}
+@media (pointer:coarse){.emoji-wrap{display:none}}
+.chat-btn{position:relative}
+.badge{position:absolute;left:22px;top:5.5px;min-width:14px;height:14px;padding:0 2px;border-radius:99px;background:var(--yellow);color:#000;font:600 8px/14px var(--f-mono);letter-spacing:-.04em;text-align:center}
+.chat-head{display:flex;align-items:center;justify-content:space-between}
+.chat-close{display:none;border:0;padding:0;width:32px;height:32px;font-size:24px;line-height:1;text-transform:none}
+.sheet-backdrop{position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.25)}
+/* phones: the chat leaves the column and becomes a sheet opened from the header button */
+@media (max-width:680px){
+  .chat-btn:not([hidden]){display:flex}
+  .chat{position:fixed;left:0;right:0;bottom:0;z-index:40;max-height:75vh;margin:0;border-radius:16px 16px 0 0;border:1px solid #000;border-bottom:0;background:var(--card);
+    padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+    box-shadow:0 -6px 24px rgba(0,0,0,.18);transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.3,1);visibility:hidden}
+  .chat.open{transform:none;visibility:visible}
+  .chat-list{max-height:none;flex:1 1 auto;min-height:0}
+  .chat-close{display:block}
+}
+@media (min-width:681px){.chat-btn{display:none!important}.sheet-backdrop{display:none!important}}
+ /* phones have their own emoji keyboard */
 .card{border:1px solid var(--line);border-radius:16px;padding:16px 25px;display:flex;flex-direction:column;gap:16px}
 .card.main{background:var(--card);padding:24px 25px;gap:24px}
 .card.turn-card{background:var(--card);border:2px solid #000;padding:20px 25px;gap:24px}
@@ -182,6 +220,7 @@ details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--lin
     <div><h1>Уголки</h1><p class="sub">Дедушкина игра на шахматной доске</p></div>
     <div class="head-actions">
       <button class="icon-btn" id="soundBtn" type="button"><img id="soundIco" src="assets/sound-on.svg" width="20" height="20" alt=""></button>
+      <button class="icon-btn chat-btn" id="chatBtn" type="button" aria-label="Чат" aria-controls="chat" aria-expanded="false" hidden><img src="assets/chat.svg" width="20" height="20" alt=""><span class="badge" id="chatBadge" hidden></span></button>
       <div class="menu-wrap" id="menuWrap" hidden>
         <button class="icon-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" aria-label="Меню"><img src="assets/menu-dots.svg" width="20" height="20" alt=""></button>
         <div class="menu" id="menu" role="menu" hidden><button class="menu-item" id="topNew" type="button" role="menuitem">Начать новую игру</button></div>
@@ -199,7 +238,23 @@ details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--lin
       </div>
       <div class="tray" id="tray" aria-label="Твои фишки вне поля"></div>
     </div>
-    <div class="side" id="side"></div>
+    <div class="side">
+      <div class="side-inner" id="side"></div>
+      <section class="card chat" id="chat" hidden aria-label="Чат">
+        <div class="chat-head"><p class="card-sub">Чат</p><button type="button" class="chat-close" id="chatClose" aria-label="Закрыть чат">×</button></div>
+        <ul class="chat-list" id="chatList" aria-live="polite"></ul>
+        <form class="chat-form" id="chatForm" autocomplete="off">
+          <input type="text" id="chatInput" maxlength="300" placeholder="Напиши сообщение" aria-label="Сообщение">
+          <div class="emoji-wrap">
+            <button type="button" class="icon-btn emoji-btn" id="emojiBtn" aria-label="Эмодзи" aria-expanded="false">🙂</button>
+            <div class="emoji-pop" id="emojiPop" hidden></div>
+          </div>
+          <button type="submit" class="btn-main chat-send" id="chatSend" aria-label="Отправить" disabled>→</button>
+        </form>
+      </section>
+      <div class="side-inner" id="sideRest"></div>
+    </div>
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
   </div>
 </div>
 <script>
@@ -298,6 +353,7 @@ function enterRoom(code,seat,size){
   render();
 }
 function leaveRoom(){
+  chatKey='';chatSeenCount=-1;chatList.innerHTML='';
   if(NET&&NET.off)NET.off();
   NET=null;G=null;params.delete('room');
   const u=new URL(location.href);u.searchParams.delete('room');history.replaceState(null,'',u.toString().replace('tab=','tab'));
@@ -307,7 +363,7 @@ function roomPlayers(){ // seated players in seat order: [{uid,name,seat}]
   return Object.entries(p).map(([uid,v])=>({uid,name:v.name,seat:v.seat})).sort((a,b)=>a.seat-b.seat);
 }
 function onRoom(v){
-  NET.data=v;
+  NET.data=v;renderChat();
   if(!v.state){
     G=null;screen='lobby';
     const list=roomPlayers();
@@ -489,6 +545,76 @@ function botPick(){
   return G.options.slice().sort((a,b)=>score(b)-score(a))[0];
 }
 
+/* ---------- chat (friends mode) ---------- */
+const EMOJI=['😀','😂','😍','😎','🤔','😮','😢','😡','👍','👎','👏','🙏','🎉','🔥','🍀','🎲','💪','🙈'];
+const chatEl=document.getElementById('chat'),chatList=document.getElementById('chatList'),chatForm=document.getElementById('chatForm'),
+  chatInput=document.getElementById('chatInput'),emojiBtn=document.getElementById('emojiBtn'),emojiPop=document.getElementById('emojiPop');
+let DEMO_CHAT=null,chatKey='',chatSeenCount=-1; // -1 = history not loaded yet, so old messages don't ding
+const hhmm=ts=>{if(!ts)return '';const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+function chatMessages(){
+  if(DEMO_CHAT)return DEMO_CHAT;
+  const c=(NET&&NET.data&&NET.data.chat)||{};
+  return Object.values(c).filter(m=>m&&m.text).sort((a,b)=>(a.ts||0)-(b.ts||0));
+}
+function renderChat(){
+  const show=!!(NET&&NET.data&&NET.data.state)||!!DEMO_CHAT;
+  chatEl.hidden=!show;chatBtn.hidden=!show;if(!show){closeChat();return;}
+  paintBadge();
+  const list=chatMessages(),key=list.length+':'+(list.length?list[list.length-1].ts:0);
+  if(key===chatKey)return;chatKey=key; // nothing new: leave the list (and its scroll position) alone
+  if(chatSeenCount>=0&&list.length>chatSeenCount&&!isMineMsg(list[list.length-1]))sfx('message');
+  chatSeenCount=list.length;
+  const atBottom=chatList.scrollHeight-chatList.scrollTop-chatList.clientHeight<30;
+  chatList.innerHTML=list.length?list.map(m=>{const c=COLORS[m.color]||COLORS[0];
+    return `<li class="msg"><div class="msg-head">${ico(c,14)}<span>${esc(m.name)}</span><span class="msg-time">${hhmm(m.ts)}</span></div><div class="msg-text">${esc(m.text)}</div></li>`;}).join('')
+    :'<li class="chat-empty">Пока тихо. Напиши первым!</li>';
+  if(atBottom||list.length<=1)chatList.scrollTop=chatList.scrollHeight;
+}
+chatForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const text=chatInput.value.trim().slice(0,300);if(!text)return;
+  chatInput.value='';syncSend();closeEmoji();sfx('send');
+  if(DEMO_CHAT){DEMO_CHAT.push({name:'Ты',color:0,text,ts:Date.now()});chatList.scrollTop=1e9;renderChat();chatList.scrollTop=chatList.scrollHeight;return;}
+  if(!NET||!G)return;
+  const me=G.players[NET.seat];
+  fb.push(rref('chat'),{uid:fb.uid,name:who(me),color:me.color,text,ts:fb.serverTimestamp()}).catch(()=>{chatInput.value=text;syncSend();});
+  chatList.scrollTop=chatList.scrollHeight;
+});
+const chatSend=document.getElementById('chatSend');
+function syncSend(){chatSend.disabled=!chatInput.value.trim();}
+chatInput.addEventListener('input',syncSend);
+emojiPop.innerHTML=EMOJI.map(e=>`<button type="button" data-emoji="${e}" aria-label="${e}">${e}</button>`).join('');
+function closeEmoji(){emojiPop.hidden=true;emojiBtn.setAttribute('aria-expanded','false');}
+emojiBtn.addEventListener('click',e=>{e.stopPropagation();const open=emojiPop.hidden;emojiPop.hidden=!open;emojiBtn.setAttribute('aria-expanded',open);});
+emojiPop.addEventListener('click',e=>{
+  const b=e.target.closest('[data-emoji]');if(!b)return;
+  const i=chatInput.selectionStart??chatInput.value.length,j=chatInput.selectionEnd??i;
+  chatInput.value=(chatInput.value.slice(0,i)+b.dataset.emoji+chatInput.value.slice(j)).slice(0,300);
+  chatInput.focus();const k=i+b.dataset.emoji.length;chatInput.setSelectionRange(k,k);syncSend();
+});
+document.addEventListener('click',e=>{if(!emojiPop.hidden&&!e.target.closest('.emoji-wrap'))closeEmoji();});
+// phones: header button opens the chat as a sheet; the badge counts messages from others newer than the last time you looked
+const chatBtn=document.getElementById('chatBtn'),chatBadge=document.getElementById('chatBadge'),chatClose=document.getElementById('chatClose'),backdrop=document.getElementById('sheetBackdrop');
+const sheetMode=()=>matchMedia('(max-width:680px)').matches;
+const seenKey=()=>'ugolki-seen-'+(NET?NET.code:'demo');
+const isMineMsg=m=>DEMO_CHAT?m.name==='Ты':!!(fb&&m.uid===fb.uid);
+function markSeen(){const l=chatMessages();store.set(seenKey(),String(l.length?(l[l.length-1].ts||Date.now()):Date.now()));}
+function paintBadge(){
+  if(!sheetMode()||chatEl.classList.contains('open')){if(chatEl.classList.contains('open'))markSeen();chatBadge.hidden=true;return;}
+  const seen=+store.get(seenKey())||0,n=chatMessages().filter(m=>!isMineMsg(m)&&(m.ts||0)>seen).length;
+  chatBadge.hidden=!n;chatBadge.textContent=n>9?'9+':n;
+  chatBtn.setAttribute('aria-label',n?`Чат, новых сообщений: ${n}`:'Чат');
+}
+function openChat(){chatEl.classList.add('open');backdrop.hidden=false;chatBtn.setAttribute('aria-expanded','true');markSeen();paintBadge();chatList.scrollTop=chatList.scrollHeight;}
+function closeChat(){if(!chatEl.classList.contains('open'))return;chatEl.classList.remove('open');backdrop.hidden=true;chatBtn.setAttribute('aria-expanded','false');closeEmoji();paintBadge();}
+chatBtn.addEventListener('click',()=>chatEl.classList.contains('open')?closeChat():openChat());
+chatClose.addEventListener('click',closeChat);
+backdrop.addEventListener('click',closeChat);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&chatEl.classList.contains('open')&&emojiPop.hidden)closeChat();});
+matchMedia('(max-width:680px)').addEventListener('change',()=>{if(!sheetMode())closeChat();paintBadge();});
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!emojiPop.hidden)closeEmoji();});
+
 /* ---------- rematch (online) ---------- */
 const votes=()=>Object.values(G.rematch||{}).filter(Boolean).length;
 const iVoted=()=>!!(NET&&G.rematch&&G.rematch[NET.seat]);
@@ -506,7 +632,7 @@ function restartOnline(){
 /* ---------- sound ---------- */
 // Web Audio: sounds are decoded once and started exactly on cue, so every cell of a move gets its own tap
 const SOUND={on:store.get('ugolki-sound')!=='off',ctx:null,buf:{},loading:{},log:null};
-const SOUND_NAMES=['dice','six','step','capture','home','turn','win','lose','tap'];
+const SOUND_NAMES=['dice','six','step','capture','home','turn','win','lose','tap','send','message'];
 function audioCtx(){
   if(SOUND.ctx)return SOUND.ctx;
   const C=window.AudioContext||window.webkitAudioContext;
@@ -536,7 +662,7 @@ const soundBtn=document.getElementById('soundBtn');
 function paintSound(){document.getElementById('soundIco').src=SOUND.on?'assets/sound-on.svg':'assets/sound-off.svg';soundBtn.setAttribute('aria-label',SOUND.on?'Выключить звук':'Включить звук');}
 soundBtn.addEventListener('click',()=>{SOUND.on=!SOUND.on;store.set('ugolki-sound',SOUND.on?'on':'off');paintSound();if(SOUND.on)sfx('tap');});
 // a soft tap on every control (buttons, menu, rules/moves panels); the dice button and the board have their own sounds
-document.addEventListener('click',e=>{const b=e.target.closest('button,summary');if(!b||b.disabled||b.id==='roll'||b===soundBtn)return;sfx('tap');},true);
+document.addEventListener('click',e=>{const b=e.target.closest('button,summary');if(!b||b.disabled||b.id==='roll'||b.id==='chatSend'||b===soundBtn)return;sfx('tap');},true);
 paintSound();
 
 /* ---------- dice ---------- */
@@ -551,7 +677,7 @@ async function animateDie(final){
 }
 
 /* ---------- render ---------- */
-const boardEl=document.getElementById('board'),sideEl=document.getElementById('side'),trayEl=document.getElementById('tray'),topNew=document.getElementById('topNew');
+const boardEl=document.getElementById('board'),sideEl=document.getElementById('side'),sideRest=document.getElementById('sideRest'),trayEl=document.getElementById('tray'),topNew=document.getElementById('topNew');
 const cells={};
 for(let y=7;y>=0;y--)for(let x=0;x<8;x++){
   const el=document.createElement('div');
@@ -562,7 +688,7 @@ for(let y=7;y>=0;y--)for(let x=0;x<8;x++){
 const ico=(c,s)=>`<span class="ico" style="--fill:${c.fill};--edge:${c.edge};--s:${s||20}px"></span>`;
 function pieceEl(col){const pc=document.createElement('div');pc.className='pc';pc.style.setProperty('--fill',col.fill);pc.style.setProperty('--edge',col.edge);return pc;}
 function makeButton(el,label){el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label',label);}
-function render(){renderBoard();renderTray();renderSide();menuWrap.hidden=screen==='home';if(menuWrap.hidden)closeMenu();}
+function render(){renderBoard();renderTray();renderSide();renderChat();menuWrap.hidden=screen==='home';if(menuWrap.hidden)closeMenu();}
 // before a game starts the board shows each colour's way home, like the opening picture in the design
 const SHOWCASE=[[2,[[0,7],[1,6],[2,5],[3,4]]],[1,[[7,7],[6,6],[5,5],[4,4]]],[0,[[0,0],[1,1],[2,2],[3,3]]],[3,[[7,0],[6,1],[5,2],[4,3]]]];
 function renderBoard(){
@@ -674,6 +800,7 @@ function bindDetails(){
   const l=document.getElementById('logBox');if(l)l.addEventListener('toggle',()=>{openLog=l.open;});
 }
 function renderSide(){
+  if(screen!=='game'||!G)sideRest.innerHTML='';
   if(screen==='home')return renderHome();
   if(screen==='join')return renderJoin();
   if(screen==='error')return renderError();
@@ -703,7 +830,9 @@ function renderSide(){
       </div>
     </div>`;
   }
-  sideEl.innerHTML=top+`
+  // turn/result card on top, the chat sits right under it (it lives outside these two blocks), then players, moves, rules
+  sideEl.innerHTML=top;
+  sideRest.innerHTML=`
     <div class="card"><div class="players">${G.players.map((Q,i)=>{const c=COLORS[Q.color];
       const home=Q.pieces.filter(p=>p>=28).length,on=Q.pieces.filter(p=>p>=0&&p<28).length;const pl=G.places.indexOf(i);
       const done=pl>=0&&G.phase!=='over'&&pl<G.players.length-1; // at the end the places live in the result card
@@ -866,15 +995,6 @@ async function boot(){
     if(mine!=null){enterRoom(code,+mine,joinInfo.meta.size);return;} // back after a reload
     render();
   }catch(err){fatal=netError(err);screen='error';render();}
-}
-// ?demo — a small switcher to look at the end-of-game screens without playing a whole game
-if(params.has('demo')){
-  const bar=document.createElement('div');
-  bar.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;background:#fcf9f1;border:1px solid #000;border-radius:14px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.15)';
-  const show=places=>{NET=null;if(!G||G.players.length!==3)G=makeState([{name:'Ты'},{name:'Бот 1',bot:true},{name:'Бот 2',bot:true}]);
-    clearTimeout(botTimer);G.places=places;G.phase='over';screen='game';render();};
-  [['Победа',[0,1,2]],['2-е место',[1,0,2]],['Проигрыш',[1,2,0]]].forEach(([t,pl])=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=()=>show(pl);bar.appendChild(b);});
-  document.body.appendChild(bar);
 }
 boot();
 </script>

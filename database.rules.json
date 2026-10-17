@@ -21,6 +21,12 @@
         },
         "state": {
           ".write": "auth != null && root.child('rooms').child($room).child('players').child(auth.uid).exists()"
+        },
+        "chat": {
+          "$msg": {
+            ".write": "auth != null && !data.exists() && root.child('rooms').child($room).child('players').child(auth.uid).exists() && newData.child('uid').val() === auth.uid",
+            ".validate": "newData.hasChildren(['uid', 'name', 'color', 'text', 'ts']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 300 && newData.child('name').isString() && newData.child('name').val().length <= 20 && newData.child('color').isNumber()"
+          }
         }
       }
     }
