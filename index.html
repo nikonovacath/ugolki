@@ -47,14 +47,13 @@ h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;let
 .sq.dest{cursor:pointer}
 .sq.dest::after{content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:var(--yellow);border:1px solid #000;z-index:3;
   transition:width .22s cubic-bezier(.2,.8,.3,1),height .22s cubic-bezier(.2,.8,.3,1),background-color .22s ease,border-width .22s ease}
-.sq.dest:hover::after,.sq.dest:focus-visible::after{width:74%;height:74%;background:color-mix(in srgb,var(--yellow) 45%,transparent);border-width:2px}
+.sq.dest:focus-visible::after{width:74%;height:74%;background:color-mix(in srgb,var(--yellow) 45%,transparent);border-width:2px}
 .sq.dest:focus-visible{outline:none}
 .pc{width:72%;aspect-ratio:1;border-radius:50%;background:var(--fill);border:3px solid var(--edge);position:relative;z-index:2;flex:none;
   box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15);transition:transform .12s}
 .pc::after{content:"";position:absolute;inset:22%;border-radius:50%;border:2px solid var(--edge);opacity:.45}
 .sq.pair .pc{width:50%;margin:0 -6%}
 .pc.can{cursor:pointer;outline:3px solid var(--ring);outline-offset:2px;animation:pulse 1.1s infinite}
-.pc.can:hover{transform:translateY(-3px)}
 .pc.sel{outline:4px solid var(--ring);outline-offset:2px;animation:none;transform:translateY(-3px)}
 @keyframes pulse{50%{outline-color:transparent}}
 /* reserves under the board: yours on the left (big, clickable), everyone else on the right (mini) */
@@ -101,15 +100,20 @@ h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;let
 @container (max-width:334px){.row{flex-direction:column;align-items:stretch;gap:8px}.row .lab{width:auto}.row .seg{align-self:flex-start}}
 button{font:inherit;cursor:pointer;color:#000;background:transparent;border:1px solid #000;border-radius:12px;padding:8px 18px;line-height:24px;text-transform:uppercase;transition:background-color .12s,color .12s}
 button[aria-pressed="true"]{background:#000;color:#fff}
-button:not(:disabled):hover{background:rgba(0,0,0,.06)}
-button[aria-pressed="true"]:hover{background:#2b2b2b}
-.btn-main:not(:disabled):hover{background:#ffbd2e}
 button:not(:disabled):active{transform:translateY(1px)}
-input[type="text"]:hover{background:rgba(0,0,0,.03)}
-details.card summary:hover .chev{opacity:.6}
-.linkbtn:hover{opacity:1;background:transparent}
-.tray .pc.can:hover,.pc.can:hover{transform:translateY(-3px)}
-.sq.can-place:hover::before{background:color-mix(in srgb,var(--yellow) 35%,transparent)}
+/* hover tints only where there is a real pointer; on phones a tap would otherwise leave them stuck */
+@media (hover:hover) and (pointer:fine){
+  .pc.can:hover{transform:translateY(-3px)}
+  button:not(:disabled):hover{background:rgba(0,0,0,.06)}
+  button[aria-pressed="true"]:hover{background:#2b2b2b}
+  .btn-main:not(:disabled):hover{background:#ffbd2e}
+  input[type="text"]:hover{background:rgba(0,0,0,.03)}
+  details.card summary:hover .chev{opacity:.6}
+  .linkbtn:hover{opacity:1;background:transparent}
+  .tray .pc.can:hover,.pc.can:hover{transform:translateY(-3px)}
+  .sq.can-place:hover::before{background:color-mix(in srgb,var(--yellow) 35%,transparent)}
+  .sq.dest:hover::after{width:74%;height:74%;background:color-mix(in srgb,var(--yellow) 45%,transparent);border-width:2px}
+}
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
 .btn-main{background:var(--yellow);width:100%;padding:8px 42px}
 .btn-main:disabled{background:var(--disabled);opacity:.4;cursor:default}
@@ -626,35 +630,44 @@ topNew.addEventListener('click',goHome);
 
 let home={mode:'bots',count:1,error:''};
 function renderHome(){
-  const friends=home.mode==='friends';
   sideEl.innerHTML=`<form class="card main" id="homeForm">
     <p class="card-title">Новая игра</p>
     <hr class="rule">
     <div class="rows">
       <div class="row"><span class="lab">Играть:</span><div class="seg wide" role="group" aria-label="Режим">
-        <button type="button" data-mode="bots" aria-pressed="${!friends}">С ботами</button>
-        <button type="button" data-mode="friends" aria-pressed="${friends}">С друзьями</button></div></div>
-      <div class="row"><span class="lab">${friends?'Друзей:':'Ботов:'}</span><div class="seg">${[1,2,3].map(v=>`<button type="button" data-count="${v}" aria-pressed="${home.count===v}">${v}</button>`).join('')}</div></div>
-      ${friends?`<div class="row"><label class="lab" for="name">Твое имя:</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Введи имя"></div>`:''}
+        <button type="button" data-mode="bots">С ботами</button>
+        <button type="button" data-mode="friends">С друзьями</button></div></div>
+      <div class="row"><span class="lab" id="countLab"></span><div class="seg">${[1,2,3].map(v=>`<button type="button" data-count="${v}">${v}</button>`).join('')}</div></div>
+      <div class="row" id="nameRow"><label class="lab" for="name">Твое имя:</label><input type="text" id="name" maxlength="20" autocomplete="nickname" value="${esc(store.get('ugolki-name'))}" placeholder="Введи имя"></div>
     </div>
     <div class="stack">
-      ${home.error?`<p class="err">${esc(home.error)}</p>`:''}
-      <button class="btn-main" type="submit" id="start">${friends?'Создать игру':'Начать игру'}</button>
-      ${friends?`<p class="note">Создадим игру и дадим ссылку для друзей. Игра начнётся, когда все зайдут.</p>`:''}
+      <p class="err" id="homeErr" hidden></p>
+      <button class="btn-main" type="submit" id="start"></button>
+      <p class="note" id="homeNote">Создадим игру и дадим ссылку для друзей. Игра начнётся, когда все зайдут.</p>
     </div></form>
     ${rulesCard()}`;
   bindDetails();
-  const nameEl=document.getElementById('name');
-  const keepName=()=>{if(nameEl)store.set('ugolki-name',nameEl.value.trim());};
-  sideEl.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{keepName();home.mode=b.dataset.mode;home.error='';render();}));
-  sideEl.querySelectorAll('[data-count]').forEach(b=>b.addEventListener('click',()=>{keepName();home.count=+b.dataset.count;render();}));
+  const nameEl=document.getElementById('name'),errEl=document.getElementById('homeErr');
+  const update=()=>{
+    const f=home.mode==='friends';
+    sideEl.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===home.mode));
+    sideEl.querySelectorAll('[data-count]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.count===home.count));
+    document.getElementById('countLab').textContent=f?'Друзей:':'Ботов:';
+    document.getElementById('nameRow').hidden=!f;
+    document.getElementById('homeNote').hidden=!f;
+    document.getElementById('start').textContent=f?'Создать игру':'Начать игру';
+    errEl.hidden=!home.error;errEl.textContent=home.error;
+  };
+  update();
+  sideEl.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{home.mode=b.dataset.mode;home.error='';update();}));
+  sideEl.querySelectorAll('[data-count]').forEach(b=>b.addEventListener('click',()=>{home.count=+b.dataset.count;update();}));
   document.getElementById('homeForm').addEventListener('submit',async e=>{
-    e.preventDefault();keepName();
-    if(!friends){home.error='';newLocalGame('Ты',home.count);return;}
+    e.preventDefault();store.set('ugolki-name',nameEl.value.trim());
+    if(home.mode!=='friends'){home.error='';newLocalGame('Ты',home.count);return;}
     const name=nameEl.value.trim();
-    if(!name){home.error='Напиши имя, чтобы друзья видели, кто играет.';render();return;}
+    if(!name){home.error='Напиши имя, чтобы друзья видели, кто играет.';update();nameEl.focus();return;}
     const btn=document.getElementById('start');btn.disabled=true;btn.textContent='Создаём игру…';
-    try{await createRoom(name,home.count);}catch(err){home.error=netError(err);render();}
+    try{await createRoom(name,home.count);}catch(err){home.error=netError(err);btn.disabled=false;update();}
   });
 }
 let joinInfo=null,joinError='';
