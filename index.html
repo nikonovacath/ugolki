@@ -634,7 +634,7 @@ function restartOnline(){
 /* ---------- sound ---------- */
 // Web Audio: sounds are decoded once and started exactly on cue, so every cell of a move gets its own tap
 const SOUND={on:store.get('ugolki-sound')!=='off',ctx:null,buf:{},loading:{},log:null};
-const SOUND_NAMES=['dice','six','step','capture','home','turn','win','lose','tap','send','message'];
+const SOUND_NAMES=['dice1','dice2','dice3','dice4','dice5','six','step','capture','home','turn','win','lose','tap','send','message'];
 function audioCtx(){
   if(SOUND.ctx)return SOUND.ctx;
   const C=window.AudioContext||window.webkitAudioContext;
@@ -652,9 +652,14 @@ function sfx(name){
   if(SOUND.log)SOUND.log.push(name);
   const ctx=audioCtx();if(!ctx)return;
   if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+  let rate=1;
+  if(name==='dice'){ // five real rolls from the recording, never the same one twice in a row, each a touch higher or lower
+    let k;do{k=1+Math.floor(Math.random()*5);}while(k===SOUND.lastDice);SOUND.lastDice=k;
+    name='dice'+k;rate=0.94+Math.random()*0.12;
+  }
   const b=SOUND.buf[name];
   if(!b){loadSound(name);return;}
-  const src=ctx.createBufferSource();src.buffer=b;src.connect(ctx.destination);src.start();
+  const src=ctx.createBufferSource();src.buffer=b;src.playbackRate.value=rate;src.connect(ctx.destination);src.start();
 }
 SOUND_NAMES.forEach(loadSound);
 // browsers keep audio paused until the first tap or click on the page
