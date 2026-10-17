@@ -22,7 +22,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-mono);fo
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px}
 .wrap{max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.head-actions{display:flex;align-items:center;gap:4px}
+.head-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:12px;background:transparent}
+.icon-btn img{display:block;width:20px;height:20px}
+.icon-btn[aria-expanded="true"]{border-color:#000}
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:20;background:var(--card);border:1px solid #000;border-radius:16px;padding:8px;box-shadow:0 3px 11px -2px rgba(0,0,0,.25)}
+.menu-item{display:block;width:100%;border:0;border-radius:10px;padding:16px 17px;text-align:left;white-space:nowrap}
 h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;letter-spacing:-.03em;margin:0}
 .sub{margin:2px 0 0;font-size:12px;line-height:19px;color:var(--text);text-transform:uppercase}
 .game{display:flex;gap:15px;align-items:flex-start;justify-content:center}
@@ -157,7 +163,10 @@ details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--lin
 .rules{margin:0;padding-left:21px;gap:8px;color:var(--text);text-transform:uppercase;line-height:20px;display:flex;flex-direction:column}
 .log{margin:0;padding:0;list-style:none;font-size:12px;line-height:18px;color:var(--text);text-transform:uppercase;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
 .log li:first-child{color:#000}
-.results ol{margin:0;padding-left:22px;font-family:var(--f-head);font-size:18px;line-height:28px}
+.result-card{background:var(--card);border:2px solid #000;padding:20px 25px;gap:20px}
+.result-card.win{border-color:var(--six)}
+.result-title{display:block;margin:0}
+.result-card .prow .st{color:var(--text)}
 .big{font-family:var(--f-head);font-size:32px;line-height:36px}
 .invite{display:flex;gap:8px;flex-wrap:wrap}
 .invite input{flex:1 1 180px;text-transform:none;font-size:12px}
@@ -171,7 +180,13 @@ details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--lin
 <div class="wrap">
   <header>
     <div><h1>Уголки</h1><p class="sub">Дедушкина игра на шахматной доске</p></div>
-    <div class="head-actions"><button class="linkbtn" id="soundBtn" type="button"></button><button class="linkbtn" id="topNew" hidden>Новая игра</button></div>
+    <div class="head-actions">
+      <button class="icon-btn" id="soundBtn" type="button"><img id="soundIco" src="assets/sound-on.svg" width="20" height="20" alt=""></button>
+      <div class="menu-wrap" id="menuWrap" hidden>
+        <button class="icon-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" aria-label="Меню"><img src="assets/menu-dots.svg" width="20" height="20" alt=""></button>
+        <div class="menu" id="menu" role="menu" hidden><button class="menu-item" id="topNew" type="button" role="menuitem">Начать новую игру</button></div>
+      </div>
+    </div>
   </header>
   <div class="game">
     <div class="board-box">
@@ -308,6 +323,7 @@ function onRoom(v){
     // came back mid-turn (page reloaded during a move): give the turn back as a fresh roll
     if(G.turn===NET.seat&&G.phase==='busy'){G.phase='roll';G.note='';G.options=[];sync();return;}
   }
+  if(G.phase==='over'&&votes()>=G.players.length&&NET.seat===0){restartOnline();return;}
   render();
   if(prevStart!==undefined&&(G.rollStart||0)!==prevStart&&G.turn!==NET.seat){sfx('dice');const d=document.getElementById('die');if(d&&!reduced)d.classList.add('rolling');}
   if(prevSeq!==undefined&&(G.rollSeq||0)!==prevSeq&&G.roll===6&&G.turn!==NET.seat)sfx('six');
@@ -317,7 +333,7 @@ function onRoom(v){
 function remoteSounds(old){
   let step=false,cap=false,home=false;
   G.players.forEach((P,j)=>{const O=old.players[j];if(!O)return;P.pieces.forEach((p,n)=>{const o=O.pieces[n];if(p===o)return;
-    if(o>=0&&p<0)cap=true;else if(p>o||(o<0&&p===0)){step=true;if(p>=28&&o<28)home=true;}});});
+    if(o>=0&&p<0)cap=true;else if(p>o||(o<0&&p===0)){step=true;if(settled(P,p))home=true;}});});
   if(cap)sfx('capture');else if(home)sfx('home');else if(step)sfx('step');
   if(old.phase!=='over'&&G.phase==='over')endSound();
   else if(old.turn!==NET.seat&&G.turn===NET.seat&&G.phase!=='over')sfx('turn');
@@ -328,7 +344,7 @@ function startOnline(list){
 }
 function pack(g){return JSON.parse(JSON.stringify(g));}
 function normalize(s){ // Firebase drops empty arrays and nulls; put them back
-  s.places=s.places||[];s.log=s.log||[];s.roll=s.roll||null;
+  s.places=s.places||[];s.rematch=s.rematch||{};s.log=s.log||[];s.roll=s.roll||null;
   s.options=(s.options||[]).map(o=>Object.assign(o,{cap:o.cap||[]}));
   s.players=(s.players||[]).map(p=>Object.assign(p,{pieces:p.pieces||[-1,-1,-1,-1]}));
   return s;
@@ -367,6 +383,8 @@ function optionsFor(pi,r){
   return opts;
 }
 const finished=P=>P.pieces.every(p=>p>=28);
+// a piece is settled when it reached the deepest free cell of its corner: every cell beyond it (up to d4) is already taken by its own pieces
+const settled=(P,pos)=>{if(pos<28)return false;for(let q=pos+1;q<=31;q++)if(!P.pieces.includes(q))return false;return true;};
 const cur=()=>G.players[G.turn];
 const who=P=>P.name||COLORS[P.color].name;
 const isMine=()=>G&&G.phase!=='over'&&(NET?G.turn===NET.seat:!cur().bot);
@@ -386,9 +404,11 @@ function newLocalGame(name,bots){
 }
 function addLog(t){G.log.unshift(t);G.log=G.log.slice(0,40);}
 function nextTurn(){
-  const n=G.players.length;
+  const n=G.players.length,was=G.turn;
   do{G.turn=(G.turn+1)%n;}while(G.places.includes(G.turn));
   G.again=false;
+  // with bots: a little chime when the turn comes back to you (online this is handled in remoteSounds)
+  if(!NET&&G.players[was].bot&&!cur().bot)sfx('turn');
 }
 function capture(list){
   list.forEach(o=>{G.players[o.j].pieces[o.n]=-1;addLog(`${who(cur())} рубит фишку: ${who(G.players[o.j])}.`);});
@@ -429,9 +449,9 @@ async function apply(opt){
     }else{
       for(let s=opt.from+1;s<=opt.to;s++){P.pieces[opt.n]=s;sfx('step');sync();await wait(reduced?0:130);}
       capture(opt.cap);
-      if(opt.cap.length)sfx('capture');else if(opt.to>=28&&opt.from<28)sfx('home');
+      if(opt.cap.length)sfx('capture');else if(settled(P,opt.to))sfx('home');
       const dest=cname(cellAt(P.corner,opt.to));
-      addLog(opt.to>=28&&opt.from<28?`${nm}: фишка дома на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
+      addLog(settled(P,opt.to)?`${nm}: фишка дома на ${dest}.`:`${nm}: ${G.roll}, ход на ${dest}.`);
     }
     if(finished(P)){
       G.places.push(G.turn);
@@ -469,19 +489,54 @@ function botPick(){
   return G.options.slice().sort((a,b)=>score(b)-score(a))[0];
 }
 
+/* ---------- rematch (online) ---------- */
+const votes=()=>Object.values(G.rematch||{}).filter(Boolean).length;
+const iVoted=()=>!!(NET&&G.rematch&&G.rematch[NET.seat]);
+function againButton(){
+  if(!NET)return '<button class="btn-main" id="again">Сыграть ещё</button>';
+  const n=votes(),all=G.players.length;
+  if(iVoted())return `<button class="btn-main" id="again" disabled>Ждём остальных · ${n}/${all}</button>`;
+  return `<button class="btn-main" id="again">Сыграть ещё</button>${n?`<p class="note">Готовы сыграть ещё: ${n} из ${all}</p>`:''}`;
+}
+function restartOnline(){
+  G=makeState(G.players.map(p=>({name:p.name,bot:false})));SEL=null;
+  fb.set(rref('state'),pack(G));
+}
+
 /* ---------- sound ---------- */
-const SOUND={on:store.get('ugolki-sound')!=='off',cache:{}};
+// Web Audio: sounds are decoded once and started exactly on cue, so every cell of a move gets its own tap
+const SOUND={on:store.get('ugolki-sound')!=='off',ctx:null,buf:{},loading:{},log:null};
+const SOUND_NAMES=['dice','six','step','capture','home','turn','win','lose','tap'];
+function audioCtx(){
+  if(SOUND.ctx)return SOUND.ctx;
+  const C=window.AudioContext||window.webkitAudioContext;
+  if(C)SOUND.ctx=new C();
+  return SOUND.ctx;
+}
+function loadSound(name){
+  const ctx=audioCtx();if(!ctx)return null;
+  if(!SOUND.loading[name])SOUND.loading[name]=fetch('sounds/'+name+'.mp3').then(r=>r.arrayBuffer())
+    .then(a=>new Promise((res,rej)=>ctx.decodeAudioData(a,res,rej))).then(b=>{SOUND.buf[name]=b;}).catch(()=>{});
+  return SOUND.loading[name];
+}
 function sfx(name){
   if(!SOUND.on)return;
-  let a=SOUND.cache[name];
-  if(!a){a=SOUND.cache[name]=new Audio('sounds/'+name+'.mp3');a.preload='auto';}
-  const n=a.paused||a.ended?a:a.cloneNode(); // a quick second play overlaps instead of cutting the first
-  try{n.currentTime=0;const p=n.play();if(p)p.catch(()=>{});}catch(e){}
+  if(SOUND.log)SOUND.log.push(name);
+  const ctx=audioCtx();if(!ctx)return;
+  if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+  const b=SOUND.buf[name];
+  if(!b){loadSound(name);return;}
+  const src=ctx.createBufferSource();src.buffer=b;src.connect(ctx.destination);src.start();
 }
+SOUND_NAMES.forEach(loadSound);
+// browsers keep audio paused until the first tap or click on the page
+document.addEventListener('pointerdown',()=>{const c=audioCtx();if(c&&c.state==='suspended')c.resume().catch(()=>{});},{passive:true});
 function endSound(){const me=NET?NET.seat:mySeat();sfx(G.places[0]===me?'win':'lose');}
 const soundBtn=document.getElementById('soundBtn');
-function paintSound(){soundBtn.textContent=SOUND.on?'Звук: вкл':'Звук: выкл';}
-soundBtn.addEventListener('click',()=>{SOUND.on=!SOUND.on;store.set('ugolki-sound',SOUND.on?'on':'off');paintSound();});
+function paintSound(){document.getElementById('soundIco').src=SOUND.on?'assets/sound-on.svg':'assets/sound-off.svg';soundBtn.setAttribute('aria-label',SOUND.on?'Выключить звук':'Включить звук');}
+soundBtn.addEventListener('click',()=>{SOUND.on=!SOUND.on;store.set('ugolki-sound',SOUND.on?'on':'off');paintSound();if(SOUND.on)sfx('tap');});
+// a soft tap on every control (buttons, menu, rules/moves panels); the dice button and the board have their own sounds
+document.addEventListener('click',e=>{const b=e.target.closest('button,summary');if(!b||b.disabled||b.id==='roll'||b===soundBtn)return;sfx('tap');},true);
 paintSound();
 
 /* ---------- dice ---------- */
@@ -507,7 +562,7 @@ for(let y=7;y>=0;y--)for(let x=0;x<8;x++){
 const ico=(c,s)=>`<span class="ico" style="--fill:${c.fill};--edge:${c.edge};--s:${s||20}px"></span>`;
 function pieceEl(col){const pc=document.createElement('div');pc.className='pc';pc.style.setProperty('--fill',col.fill);pc.style.setProperty('--edge',col.edge);return pc;}
 function makeButton(el,label){el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label',label);}
-function render(){renderBoard();renderTray();renderSide();topNew.hidden=screen==='home';}
+function render(){renderBoard();renderTray();renderSide();menuWrap.hidden=screen==='home';if(menuWrap.hidden)closeMenu();}
 // before a game starts the board shows each colour's way home, like the opening picture in the design
 const SHOWCASE=[[2,[[0,7],[1,6],[2,5],[3,4]]],[1,[[7,7],[6,6],[5,5],[4,4]]],[0,[[0,0],[1,1],[2,2],[3,3]]],[3,[[7,0],[6,1],[5,2],[4,3]]]];
 function renderBoard(){
@@ -627,8 +682,16 @@ function renderSide(){
   const canRoll=G.phase==='roll'&&isMine();
   let top;
   if(G.phase==='over'){
-    top=`<div class="card main results"><p class="card-title">Игра окончена</p><hr class="rule"><ol>${G.places.map(i=>`<li>${esc(who(G.players[i]))}</li>`).join('')}</ol>
-      <button class="btn-main" id="again">Сыграть ещё</button></div>`;
+    // result from your seat: 1st = win (green frame), last = lose, anything between = your place
+    const me=NET?NET.seat:mySeat(),place=G.places.indexOf(me)+1,last=G.players.length;
+    const ORD=['','первом','втором','третьем'];
+    const title=place===1?'Игра окончена. Ты выиграл-а! 🎉':place===last?'Игра окончена. Ты проиграл-а! 🥺':`Игра окончена. Ты на ${ORD[place]} месте!`;
+    top=`<div class="card result-card${place===1?' win':''}">
+      <p class="turn result-title">${title}</p>
+      <hr class="rule">
+      <div class="players">${G.places.map((i,k)=>{const Q=G.players[i];
+        return `<div class="prow">${ico(COLORS[Q.color])}<span class="nm">${esc(who(Q))}</span><span class="st place">${k+1} место</span></div>`;}).join('')}</div>
+      ${againButton()}</div>`;
   }else{
     const mine=NET?G.turn===NET.seat:!P.bot;
     top=`<div class="card turn-card${mine?'':' calm'}">
@@ -643,7 +706,7 @@ function renderSide(){
   sideEl.innerHTML=top+`
     <div class="card"><div class="players">${G.players.map((Q,i)=>{const c=COLORS[Q.color];
       const home=Q.pieces.filter(p=>p>=28).length,on=Q.pieces.filter(p=>p>=0&&p<28).length;const pl=G.places.indexOf(i);
-      const done=pl>=0&&(G.phase==='over'||pl<G.players.length-1);
+      const done=pl>=0&&G.phase!=='over'&&pl<G.players.length-1; // at the end the places live in the result card
       return `<div class="prow${i===G.turn&&G.phase!=='over'?' active':''}">${ico(c)}
         <span class="nm">${esc(who(Q))}${NET&&i===NET.seat?' (ты)':''}</span>
         <span class="st">${done?`<span class="place">${pl+1} место</span>`:`на поле ${on} · дома ${home}`}</span></div>`;}).join('')}</div></div>
@@ -652,12 +715,18 @@ function renderSide(){
   bindDetails();
   document.getElementById('roll')?.addEventListener('click',()=>doRoll());
   document.getElementById('again')?.addEventListener('click',()=>{
-    const list=G.players.map(p=>({name:p.name,bot:p.bot}));
-    G=makeState(list);SEL=null;NET?sync():(render(),maybeBot());
+    if(NET){fb.set(rref('state/rematch/'+NET.seat),true);return;} // online: vote, the new game starts once everyone has
+    G=makeState(G.players.map(p=>({name:p.name,bot:p.bot})));SEL=null;render();maybeBot();
   });
 }
 function goHome(){clearTimeout(botTimer);leaveRoom();screen='home';render();}
-topNew.addEventListener('click',goHome);
+topNew.addEventListener('click',()=>{closeMenu();goHome();});
+// «⋯» menu in the header: opens under the button, closes on a click outside or Escape
+const menuWrap=document.getElementById('menuWrap'),menuBtn=document.getElementById('menuBtn'),menuEl=document.getElementById('menu');
+function closeMenu(){menuEl.hidden=true;menuBtn.setAttribute('aria-expanded','false');}
+menuBtn.addEventListener('click',e=>{e.stopPropagation();const open=menuEl.hidden;menuEl.hidden=!open;menuBtn.setAttribute('aria-expanded',open);if(open)topNew.focus();});
+document.addEventListener('click',e=>{if(!menuEl.hidden&&!menuWrap.contains(e.target))closeMenu();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!menuEl.hidden){closeMenu();menuBtn.focus();}});
 
 let home={mode:'bots',count:1,error:''};
 function renderHome(){
@@ -763,7 +832,7 @@ function select(sel){
   if(!G||G.phase!=='choose'||!isMine())return;
   const same=SEL&&SEL.kind===sel.kind&&SEL.n===sel.n;
   SEL=same?null:sel;render();
-  if(SEL&&SEL.kind==='reserve')sfx('step'); // picking a piece up from the reserve
+  if(SEL)sfx('step'); // picking a piece up, from the reserve or on the board
 }
 boardEl.addEventListener('click',e=>{
   if(!G)return;
@@ -797,6 +866,15 @@ async function boot(){
     if(mine!=null){enterRoom(code,+mine,joinInfo.meta.size);return;} // back after a reload
     render();
   }catch(err){fatal=netError(err);screen='error';render();}
+}
+// ?demo — a small switcher to look at the end-of-game screens without playing a whole game
+if(params.has('demo')){
+  const bar=document.createElement('div');
+  bar.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;background:#fcf9f1;border:1px solid #000;border-radius:14px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.15)';
+  const show=places=>{NET=null;if(!G||G.players.length!==3)G=makeState([{name:'Ты'},{name:'Бот 1',bot:true},{name:'Бот 2',bot:true}]);
+    clearTimeout(botTimer);G.places=places;G.phase='over';screen='game';render();};
+  [['Победа',[0,1,2]],['2-е место',[1,0,2]],['Проигрыш',[1,2,0]]].forEach(([t,pl])=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=()=>show(pl);bar.appendChild(b);});
+  document.body.appendChild(bar);
 }
 boot();
 </script>
