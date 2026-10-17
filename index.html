@@ -221,6 +221,7 @@ details.card[open] summary{padding-bottom:16px;border-bottom:1px solid var(--lin
     <div><h1>Уголки</h1><p class="sub">Дедушкина игра на шахматной доске</p></div>
     <div class="head-actions">
       <button class="icon-btn" id="soundBtn" type="button"><img id="soundIco" src="assets/sound-on.svg" width="20" height="20" alt=""></button>
+      <button class="icon-btn" id="musicBtn" type="button"><img id="musicIco" src="assets/music-on.svg" width="20" height="20" alt=""></button>
       <button class="icon-btn chat-btn" id="chatBtn" type="button" aria-label="Чат" aria-controls="chat" aria-expanded="false" hidden><img src="assets/chat.svg" width="20" height="20" alt=""><span class="badge" id="chatBadge" hidden></span></button>
       <div class="menu-wrap" id="menuWrap" hidden>
         <button class="icon-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" aria-label="Меню"><img src="assets/menu-dots.svg" width="20" height="20" alt=""></button>
@@ -665,6 +666,45 @@ soundBtn.addEventListener('click',()=>{SOUND.on=!SOUND.on;store.set('ugolki-soun
 // a soft tap on every control (buttons, menu, rules/moves panels); the dice button and the board have their own sounds
 document.addEventListener('click',e=>{const b=e.target.closest('button,summary');if(!b||b.disabled||b.id==='roll'||b.id==='chatSend'||b===soundBtn)return;sfx('tap');},true);
 paintSound();
+
+/* ---------- background music ---------- */
+// one looping track, quiet under the game sounds; its own button, remembered per browser; starts on the first tap (browsers block earlier)
+const MUSIC={on:store.get('ugolki-music')!=='off',buf:null,src:null,gain:null,loading:null,wanted:false,volume:0.25};
+const musicBtn=document.getElementById('musicBtn');
+function loadMusic(){
+  const ctx=audioCtx();if(!ctx||MUSIC.loading)return;
+  MUSIC.loading=fetch('sounds/music.mp3').then(r=>r.arrayBuffer()).then(a=>new Promise((res,rej)=>ctx.decodeAudioData(a,res,rej)))
+    .then(b=>{MUSIC.buf=b;if(MUSIC.wanted)startMusic();}).catch(()=>{});
+}
+// the track is cut to whole bars: 3 233 684 samples at 48 kHz (from the file's iTunSMPB tag), with 528 samples of encoder
+// silence before it and 2 908 after. Some browsers strip that silence when decoding and some don't, so loop exactly the musical part.
+const MUSIC_LEN=3233684/48000,MUSIC_DELAY=528/48000;
+function musicBounds(b){
+  if(b.duration-MUSIC_LEN>0.02)return[MUSIC_DELAY,MUSIC_DELAY+MUSIC_LEN]; // padding still there: skip it
+  return[0,Math.min(MUSIC_LEN,b.duration)];                             // already trimmed by the browser
+}
+function startMusic(){
+  MUSIC.wanted=true;
+  const ctx=audioCtx();if(!ctx||!MUSIC.on||MUSIC.src)return;
+  if(!MUSIC.buf){loadMusic();return;}
+  if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+  const g=ctx.createGain(),src=ctx.createBufferSource(),[a,b]=musicBounds(MUSIC.buf);
+  g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(MUSIC.volume,ctx.currentTime+1.5); // soft fade-in
+  src.buffer=MUSIC.buf;src.loop=true;src.loopStart=a;src.loopEnd=b;
+  src.connect(g);g.connect(ctx.destination);src.start(0,a);
+  MUSIC.src=src;MUSIC.gain=g;
+}
+function stopMusic(){
+  if(!MUSIC.src)return;
+  const ctx=audioCtx(),src=MUSIC.src,g=MUSIC.gain,t=ctx.currentTime;MUSIC.src=null;
+  g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+0.4);src.stop(t+0.45);
+}
+function paintMusic(){document.getElementById('musicIco').src=MUSIC.on?'assets/music-on.svg':'assets/music-off.svg';musicBtn.setAttribute('aria-label',MUSIC.on?'Выключить музыку':'Включить музыку');}
+musicBtn.addEventListener('click',()=>{MUSIC.on=!MUSIC.on;store.set('ugolki-music',MUSIC.on?'on':'off');paintMusic();MUSIC.on?startMusic():stopMusic();});
+document.addEventListener('pointerdown',()=>{if(MUSIC.on&&!MUSIC.src)startMusic();},{passive:true});
+// pause everything while the tab is in the background (phones especially), pick up again on return
+document.addEventListener('visibilitychange',()=>{const c=SOUND.ctx;if(!c)return;document.hidden?c.suspend().catch(()=>{}):c.resume().catch(()=>{});});
+paintMusic();loadMusic();
 
 /* ---------- dice ---------- */
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
