@@ -104,13 +104,14 @@ h1{font-family:var(--f-head);font-weight:400;font-size:24px;line-height:26px;let
 .chat-form{display:flex;gap:8px;align-items:center}
 .chat-form input{flex:1;min-width:0;height:42px}
 #chatInput{text-transform:none}
-#chatInput::placeholder{text-transform:uppercase}
 .chat-form .chat-send{width:42px;height:42px;padding:0;flex:none;font-size:18px;line-height:1}
 .emoji-wrap{position:relative;flex:none}
 .emoji-btn{font-size:18px;line-height:1}
 .emoji-pop{position:absolute;right:0;bottom:calc(100% + 6px);z-index:20;background:var(--card);border:1px solid #000;border-radius:16px;padding:8px;box-shadow:0 3px 11px -2px rgba(0,0,0,.25);display:grid;grid-template-columns:repeat(6,36px);gap:4px}
 .emoji-pop button{width:36px;height:36px;padding:0;border:0;border-radius:10px;font-size:20px;line-height:1;text-transform:none}
 @media (pointer:coarse){.emoji-wrap{display:none}}
+/* iPhone zooms the page in when a focused field's text is smaller than 16px; keep fields at 16px on touch screens */
+@media (pointer:coarse){html body input[type="text"]{font-size:16px}}
 .chat-btn{position:relative}
 .badge{position:absolute;left:22px;top:5.5px;min-width:14px;height:14px;padding:0 2px;border-radius:99px;background:var(--yellow);color:#000;font:600 8px/14px var(--f-mono);letter-spacing:-.04em;text-align:center}
 .chat-head{display:flex;align-items:center;justify-content:space-between}
