@@ -763,6 +763,7 @@ function select(sel){
   if(!G||G.phase!=='choose'||!isMine())return;
   const same=SEL&&SEL.kind===sel.kind&&SEL.n===sel.n;
   SEL=same?null:sel;render();
+  if(SEL&&SEL.kind==='reserve')sfx('step'); // picking a piece up from the reserve
 }
 boardEl.addEventListener('click',e=>{
   if(!G)return;
